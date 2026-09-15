@@ -561,6 +561,9 @@ parts:
       - python3.10
     stage-packages:
       - python3.10
+    stage:
+      - -usr/bin/pydoc3.10
+      - -usr/lib/python3.10
     override-prime: ""
 
   foomatic-db:
@@ -1546,6 +1549,7 @@ parts:
   utils:
     plugin: nil
     overlay-packages:
+      - python3
       - dbus
       - libnss-mdns
     override-prime: |
