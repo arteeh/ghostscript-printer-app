@@ -1,3 +1,4 @@
 *.snap
 *.rock
 .DS_Store
+.scratch/
