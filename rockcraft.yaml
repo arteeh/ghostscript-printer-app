@@ -636,6 +636,9 @@ parts:
       manufacturer-ppds: usr/share/ppd/manufacturer-ppds
     stage:
       - usr/bin
+      - -usr/bin/py3clean
+      - -usr/bin/py3compile
+      - -usr/bin/pydoc3.10
       - usr/share/ppd
     prime:
       - usr/bin/xz
