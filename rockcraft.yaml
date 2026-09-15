@@ -1546,7 +1546,6 @@ parts:
   utils:
     plugin: nil
     overlay-packages:
-      - python3
       - dbus
       - libnss-mdns
     override-prime: |
