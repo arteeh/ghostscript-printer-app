@@ -2,3 +2,4 @@
 *.rock
 .DS_Store
 .scratch/
+.worktrees/
