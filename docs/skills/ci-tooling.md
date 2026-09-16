@@ -27,7 +27,7 @@ metadata:
 4. Refuse an existing immutable tag. Proceed only when the authenticated registry response explicitly reports a missing manifest or repository; network and authentication failures are fatal.
 5. Add version, revision, creation time, license, source URL, FSDK version, and FSDK ref to every architecture image config and to the multi-architecture index.
 6. Generate one BuildStream-native SPDX JSON document for the complete dependency graph, attach it to the index, keyless-sign the index and SBOM artifact, publish GitHub provenance with `actions/attest`, then verify all three forms of evidence.
-7. Run dependency tracking and full verification before exposing the write-scoped `GITHUB_TOKEN` to a shell. Push one atomic update branch, explicitly dispatch CI because token-authored pushes do not trigger it, and never enable auto-merge.
+7. Run dependency tracking and full verification with only `contents: read`. Mint the short-lived Mergeraptor installation token afterward, expose it only to the proposal step, and push one atomic update branch without auto-merge. GitHub App-authored pushes trigger pull-request CI; do not add a redundant dispatch.
 8. Keep the Snap update/build lanes independent from FSDK OCI publication.
 9. Give every external BuildStream source a project alias. Prefer an authoritative, checksummed release archive over a personal Git mirror when upstream Git is unreliable.
 10. Give pull-request CI a PR-scoped concurrency group with `cancel-in-progress: true`; stacked force-pushes must not leave duplicate multi-hour architecture jobs consuming the runner pool.
