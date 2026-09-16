@@ -9,6 +9,15 @@ depends:
   - printer-app/cjet.bst
   - printer-app/min12xxw.bst
   - printer-app/pnm2ppa.bst
+  - printer-app/brlaser.bst
+  - printer-app/c2esp.bst
+  - printer-app/dymo-cups-drivers.bst
+  - printer-app/fxlinuxprint.bst
+  - printer-app/printer-driver-oki.bst
+  - printer-app/ptouch-driver.bst
+  - printer-app/pxljr.bst
+  - printer-app/rastertosag-gdi.bst
+  - printer-app/splix.bst
   - freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
   - freedesktop-sdk.bst:components/avahi.bst
   - freedesktop-sdk.bst:components/ca-certificates.bst
