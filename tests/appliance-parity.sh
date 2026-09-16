@@ -27,17 +27,17 @@ print(" ".join(match.group(1).replace(",", " ").split()))
 PY
 )"
 
-fsdk_version="$(python3 - <<'PY'
+read -r fsdk_version fsdk_ref < <(python3 - <<'PY'
 import pathlib
 import re
 
 junction = pathlib.Path("elements/freedesktop-sdk.bst").read_text()
-match = re.search(r"ref: freedesktop-sdk-(.+?)-0-g[0-9a-f]{40}$", junction, re.MULTILINE)
+match = re.search(r"ref: freedesktop-sdk-(.+?)-0-g([0-9a-f]{40})$", junction, re.MULTILINE)
 if match is None:
     raise SystemExit("FAIL: pinned freedesktop-sdk release is missing")
-print(match.group(1))
+print(*match.groups())
 PY
-)"
+)
 
 size_bytes="$(podman image inspect "$image" --format '{{.Size}}')"
 if ((size_bytes > size_limit_bytes)); then
@@ -58,8 +58,10 @@ test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.open
 test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = https://github.com/projectbluefin/ghostscript-printer-app
 test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}')" = Apache-2.0
 application_version="$(podman run --rm --entrypoint /usr/bin/ghostscript-printer-app "$image" --version)"
+test "$application_version" = "$(< VERSION)"
 test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "$application_version"
 test "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.version"}}')" = "$fsdk_version"
+test "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.ref"}}')" = "$fsdk_ref"
 
 podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
   -e ADVERTISED_GHOSTSCRIPT_DRIVERS="$advertised_ghostscript_drivers" \
