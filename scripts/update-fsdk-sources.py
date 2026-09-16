@@ -17,12 +17,9 @@ IJS_ELEMENT = ELEMENTS / "printer-app" / "ijs.bst"
 OCI_ELEMENT = ELEMENTS / "oci" / "ghostscript-printer-app.bst"
 PLUGIN_ELEMENT = ELEMENTS / "plugins" / "buildstream-plugins-community.bst"
 VERSION_FILE = ROOT / "VERSION"
-
-SOURCE_BLOCK = re.compile(
-    r"(?ms)^  - kind: (?P<kind>git_repo|cpan|tar)\n(?P<body>.*?)(?=^  - kind:|\Z)"
-)
+SOURCE_KIND = re.compile(r"^\s*-\s+kind:\s+(git_repo|cpan|tar)$", re.MULTILINE)
 FSDK_REF = re.compile(r"^\s*ref: freedesktop-sdk-(.+?)-0-g([0-9a-f]{40})$", re.MULTILINE)
-GHOSTSCRIPT_REF = re.compile(r"^\s*ref: ghostpdl-([0-9][^-\s]*)-\d+-g[0-9a-f]{40}$", re.MULTILINE)
+GHOSTSCRIPT_REF = re.compile(r"^\s*ref: (ghostpdl-(.+?)-\d+-g[0-9a-f]{40})$", re.MULTILINE)
 
 
 def replace_one(path: Path, pattern: str, replacement: str) -> None:
@@ -41,7 +38,7 @@ def read_fsdk_ref() -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 
-def fetch_ghostscript_version(fsdk_ref: str) -> str:
+def fetch_ghostscript_ref(fsdk_ref: str) -> tuple[str, str]:
     url = (
         "https://gitlab.com/freedesktop-sdk/freedesktop-sdk/-/raw/"
         f"{fsdk_ref}/elements/components/ghostscript.bst"
@@ -51,7 +48,7 @@ def fetch_ghostscript_version(fsdk_ref: str) -> str:
     match = GHOSTSCRIPT_REF.search(element)
     if match is None:
         raise RuntimeError("selected freedesktop-sdk has no parseable Ghostscript release ref")
-    return match.group(1)
+    return match.group(2), match.group(1)
 
 
 def refresh_plugin_tarball() -> None:
@@ -66,10 +63,15 @@ def refresh_plugin_tarball() -> None:
     sdist = sdists[0]
     url = f"pypi:source/b/buildstream-plugins-community/{sdist['filename']}"
     replace_one(PLUGIN_ELEMENT, r"^\s*url: pypi:.*$", f"    url: {url}")
-    replace_one(PLUGIN_ELEMENT, r"^\s*ref: [0-9a-f]{{64}}$", f"    ref: {sdist['digests']['sha256']}")
+    replace_one(PLUGIN_ELEMENT, r"^\s*ref: [0-9a-f]{64}$", f"    ref: {sdist['digests']['sha256']}")
 
 
 def track_sources() -> None:
+    subprocess.run(
+        ["just", "bst", "source", "track", "freedesktop-sdk.bst"],
+        cwd=ROOT,
+        check=True,
+    )
     subprocess.run(
         [
             "just",
@@ -87,13 +89,14 @@ def track_sources() -> None:
 
 def sync_fsdk_metadata() -> None:
     fsdk_version, fsdk_ref = read_fsdk_ref()
-    ghostscript_version = fetch_ghostscript_version(fsdk_ref)
+    ghostscript_version, ghostscript_ref = fetch_ghostscript_ref(fsdk_ref)
     current_version = VERSION_FILE.read_text().strip()
     match = re.fullmatch(r".+-([0-9]+)", current_version)
     if match is None:
         raise RuntimeError("VERSION must end in a numeric packaging revision")
     VERSION_FILE.write_text(f"{ghostscript_version}-{match.group(1)}\n")
     replace_one(IJS_ELEMENT, r"^\s*track: ghostpdl-.*$", f"    track: ghostpdl-{ghostscript_version}")
+    replace_one(IJS_ELEMENT, r"^\s*ref: (?:ghostpdl-)?[^\s]+$", f"    ref: {ghostscript_ref}")
     replace_one(
         OCI_ELEMENT,
         r"^(\s*'io\.projectbluefin\.fsdk\.version': )'[^']+'$",
@@ -104,11 +107,6 @@ def sync_fsdk_metadata() -> None:
         r"^(\s*'io\.projectbluefin\.fsdk\.ref': )'[^']+'$",
         rf"\1'{fsdk_ref}'",
     )
-    subprocess.run(
-        ["just", "bst", "source", "track", "printer-app/ijs.bst"],
-        cwd=ROOT,
-        check=True,
-    )
 
 
 def check_source_inventory() -> None:
@@ -116,20 +114,23 @@ def check_source_inventory() -> None:
     count = 0
     for path in sorted(ELEMENTS.rglob("*.bst")):
         text = path.read_text()
-        for source in SOURCE_BLOCK.finditer(text):
+        kinds = SOURCE_KIND.findall(text)
+        if not kinds:
+            continue
+        relative = path.relative_to(ROOT)
+        if len(kinds) != 1:
+            errors.append(f"{relative}: expected one external source, found {len(kinds)}")
+        for kind in kinds:
             count += 1
-            kind = source.group("kind")
-            body = source.group("body")
-            relative = path.relative_to(ROOT)
             required = {
                 "git_repo": ("url", "track", "ref"),
                 "cpan": ("name", "suffix", "sha256sum"),
                 "tar": ("url", "ref"),
             }[kind]
-            missing = [key for key in required if re.search(rf"^\s*{key}:", body, re.MULTILINE) is None]
+            missing = [key for key in required if re.search(rf"^\s*{key}:", text, re.MULTILINE) is None]
             if missing:
                 errors.append(f"{relative}: {kind} source missing {', '.join(missing)}")
-            ref = re.search(r"^\s*(?:ref|sha256sum):\s*([^\s]+)$", body, re.MULTILINE)
+            ref = re.search(r"^\s*(?:ref|sha256sum):\s*([^\s]+)$", text, re.MULTILINE)
             if ref is None or re.search(r"[0-9a-f]{40,64}$", ref.group(1)) is None:
                 errors.append(f"{relative}: {kind} source has no immutable integrity ref")
     if count == 0:
@@ -144,9 +145,18 @@ def main() -> None:
     parser.add_argument("--update", action="store_true", help="track sources and synchronize metadata")
     args = parser.parse_args()
     if args.update:
-        refresh_plugin_tarball()
-        track_sources()
-        sync_fsdk_metadata()
+        paths = [VERSION_FILE, *ELEMENTS.rglob("*.bst")]
+        original = {path: path.read_bytes() for path in paths}
+        try:
+            refresh_plugin_tarball()
+            track_sources()
+            sync_fsdk_metadata()
+            check_source_inventory()
+        except BaseException:
+            for path, contents in original.items():
+                path.write_bytes(contents)
+            raise
+        return
     check_source_inventory()
 
 
