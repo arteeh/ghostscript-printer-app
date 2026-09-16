@@ -7,6 +7,7 @@ port="${PORT:-18010}"
 state_dir="$(mktemp -d)"
 sink_port="$((port + 1000))"
 output_file="$(mktemp)"
+cookie_file="$(mktemp)"
 sink_pid=""
 
 cleanup() {
@@ -16,7 +17,7 @@ cleanup() {
     wait "$sink_pid" 2>/dev/null || true
   fi
   podman unshare rm -rf "$state_dir"
-  rm -f "$output_file"
+  rm -f "$output_file" "$cookie_file"
 }
 trap cleanup EXIT
 
@@ -36,12 +37,18 @@ podman run --rm --entrypoint /usr/bin/bash "$image" -c '
     /usr/bin/python3
     /usr/bin/xz
     /usr/lib/cups/backend/dnssd
+    /usr/lib/cups/backend/ipp
+    /usr/lib/cups/backend/ipps
+    /usr/lib/cups/backend/lpd
     /usr/lib/cups/backend/snmp
     /usr/lib/cups/backend/socket
     /usr/lib/cups/backend/usb
     /usr/lib/cups/filter/foomatic-rip
     /usr/lib/cups/filter/gstoraster
     /usr/lib/cups/filter/pdftops
+    /usr/lib/cups/filter/rastertoepson
+    /usr/lib/cups/filter/rastertohp
+    /usr/lib/cups/filter/rastertolabel
     /usr/lib/cups/filter/rastertoescpx
     /usr/lib/cups/filter/rastertopclx
   )
@@ -117,10 +124,17 @@ podman exec "$name" ghostscript-printer-app \
   -m generic--pcl-6-pcl-xl-printer--pxlcolor-recommended-en \
   -v "cups:socket://127.0.0.1:${sink_port}" \
   add
-podman exec "$name" ghostscript-printer-app \
-  -u "$printer_uri" \
-  -d core-test \
-  submit /usr/share/ghostscript-printer-app/testpage.ps >/dev/null
+printer_page="$(curl --fail --silent --show-error \
+  --cookie-jar "$cookie_file" \
+  "http://127.0.0.1:${port}/core-test/")"
+session="${printer_page#*name=\"session\" value=\"}"
+session="${session%%\"*}"
+[[ -n "$session" && "$session" != "$printer_page" ]]
+curl --fail --silent --show-error \
+  --cookie "$cookie_file" \
+  --data-urlencode "session=$session" \
+  --data 'action=print-test-page' \
+  "http://127.0.0.1:${port}/core-test/" >/dev/null
 
 for _ in $(seq 1 120); do
   [[ -s "$output_file" ]] && break
