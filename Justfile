@@ -78,3 +78,13 @@ verify-stateful-drivers:
 
 verify-cups-patch-chain:
     tests/cups-patch-chain.sh
+
+verify:
+    just validate
+    just verify-cups-patch-chain
+    just verify-core
+    just verify-payload
+    just verify-raster-drivers
+    just verify-packaged-drivers
+    just verify-stateful-drivers
+    tests/appliance-parity.sh
