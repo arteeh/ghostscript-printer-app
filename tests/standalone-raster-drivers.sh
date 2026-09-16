@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+image="ghcr.io/projectbluefin/ghostscript-printer-app:build"
+name="ghostscript-printer-app-raster-drivers"
+port="${PORT:-18020}"
+state_dir="$(mktemp -d)"
+
+cleanup() {
+  podman rm -f "$name" >/dev/null 2>&1 || true
+  podman unshare rm -rf "$state_dir"
+}
+trap cleanup EXIT
+wait_for_http() {
+  for _ in $(seq 1 60); do
+    curl --fail --silent --show-error "http://127.0.0.1:${port}/" >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  podman logs "$name" >&2
+  return 1
+}
+
+just build
+
+podman run --rm --entrypoint /usr/bin/bash "$image" -c '
+  set -euo pipefail
+  executables=(c2050 cjet min12xxw pnm2ppa calibrate_ppa)
+  for executable in "${executables[@]}"; do
+    path="/usr/bin/$executable"
+    test -x "$path"
+    dependencies="$(ldd "$path")"
+    [[ "$dependencies" != *"not found"* ]]
+  done
+  test -f /usr/share/ghostscript-printer-app/pnm2ppa.conf
+  ! command -v cc
+  ! command -v gcc
+  ! command -v make
+  ! command -v autoconf
+
+  foomatic_entries="$(/usr/share/ppd/foomatic-ppds list)"
+  for driver in c2050 cjet min12xxw pnm2ppa; do
+    [[ "$foomatic_entries" == *"-${driver}.ppd"* ]]
+  done
+  printf "OK: driver executables and PPD entries are present\n"
+
+  gs -q -dSAFER -dNOPAUSE -dBATCH -sDEVICE=bitcmyk -g2480x3507 -r300 \
+    -sOutputFile=/tmp/c2050.cmyk \
+    /usr/share/ghostscript-printer-app/testpage.ps
+  c2050 </tmp/c2050.cmyk >/tmp/c2050.prn
+  test -s /tmp/c2050.prn
+  printf "OK: c2050 conversion\n"
+
+  gs -q -dSAFER -dNOPAUSE -dBATCH -sDEVICE=ljet4 -r300 \
+    -sOutputFile=/tmp/cjet.pcl \
+    /usr/share/ghostscript-printer-app/testpage.ps
+  cjet -q </tmp/cjet.pcl >/tmp/cjet.prn
+  test -s /tmp/cjet.prn
+  printf "OK: cjet conversion\n"
+
+  gs -q -dSAFER -dNOPAUSE -dBATCH -sDEVICE=pbmraw -r600 \
+    -sOutputFile=/tmp/min12xxw.pbm \
+    /usr/share/ghostscript-printer-app/testpage.ps
+  min12xxw -m 1200W </tmp/min12xxw.pbm >/tmp/min12xxw.prn
+  test -s /tmp/min12xxw.prn
+  printf "OK: min12xxw conversion\n"
+'
+
+chmod 0777 "$state_dir"
+podman run -d \
+  --name "$name" \
+  --network host \
+  -e PORT="$port" \
+  -v "$state_dir:/var/lib/ghostscript-printer-app:Z" \
+  "$image" >/dev/null
+wait_for_http
+podman exec "$name" /usr/bin/bash -c '
+  set -euo pipefail
+  config=/var/lib/ghostscript-printer-app/pnm2ppa/pnm2ppa.conf
+  test -f "$config"
+  while IFS= read -r line; do
+    if [[ "$line" == version\ 710* ]]; then
+      config_initialized=1
+    fi
+  done < "$config"
+  [[ "${config_initialized:-0}" == 1 ]]
+  calibrate_ppa --center > /tmp/pnm2ppa.ppm || test -s /tmp/pnm2ppa.ppm
+  pnm2ppa --bw -i /tmp/pnm2ppa.ppm -o /tmp/pnm2ppa.prn
+  test -s /tmp/pnm2ppa.prn
+  printf "OK: pnm2ppa conversion and initial configuration\n"
+  printf "# persistence-probe\n" >> "$config"
+'
+
+podman stop --time 15 "$name" >/dev/null
+podman rm "$name" >/dev/null
+podman run -d \
+  --name "$name" \
+  --network host \
+  -e PORT="$port" \
+  -v "$state_dir:/var/lib/ghostscript-printer-app:Z" \
+  "$image" >/dev/null
+wait_for_http
+podman exec "$name" /usr/bin/bash -c '
+  while IFS= read -r line; do
+    [[ "$line" == "# persistence-probe" ]] && exit 0
+  done < /var/lib/ghostscript-printer-app/pnm2ppa/pnm2ppa.conf
+  exit 1
+'
+
+printf 'OK: standalone raster drivers execute and pnm2ppa state persists\n'
