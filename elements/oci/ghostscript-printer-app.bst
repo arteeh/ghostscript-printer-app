@@ -26,7 +26,7 @@ config:
         'nonroot:x:65532:' \
         >> /layer/etc/group
       rm -rf /layer/run/dbus /layer/run/avahi-daemon /layer/run/ghostscript-printer-app
-      rm -rf /layer/usr/lib/debug
+      rm -rf /layer/usr/lib/debug /layer/usr/share/cups/ipptool
       rm -f /layer/usr/bin/cupsd /layer/usr/bin/ippeveprinter
       chmod 0777 /layer/run
       install -d -m 1777 /layer/tmp

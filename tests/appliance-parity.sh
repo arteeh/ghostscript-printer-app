@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-podman_binary="$(command -v podman)"
-if ! "$podman_binary" info >/dev/null 2>&1; then
-  podman() { sudo "$podman_binary" "$@"; }
-fi
 
 image="ghcr.io/projectbluefin/ghostscript-printer-app:build"
 size_limit_bytes="${IMAGE_SIZE_LIMIT_BYTES:-524288000}"
@@ -134,13 +130,18 @@ podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
   provider_contains /usr/share/ppd/splix-ppds Samsung
   provider_contains /usr/share/cups/drv/sample.drv Intellitech
   provider_contains /usr/share/cups/drv/sample.drv Zebra
+  provider_contains /usr/share/ppd/foomatic-ppds Epson
+  provider_contains /usr/share/ppd/foomatic-ppds "HP DesignJet"
 
   devices=" $(gs -h 2>&1 | tr "\n" " ") "
   foomatic_entries="$(/usr/share/ppd/foomatic-ppds list)"
   read -r -a ghostscript_drivers <<< "$ADVERTISED_GHOSTSCRIPT_DRIVERS"
-  ((${#ghostscript_drivers[@]} > 0))
+  ((${#ghostscript_drivers[@]} >= 90)) || {
+    printf "FAIL: README exposed only %s Ghostscript drivers; expected at least 90\n" "${#ghostscript_drivers[@]}" >&2
+    exit 1
+  }
   for driver in "${ghostscript_drivers[@]}"; do
-    if [[ "$devices" != *" $driver "* && "$foomatic_entries" != *"-$driver.ppd\""* ]]; then
+    if [[ "$devices" != *" $driver "* && "$foomatic_entries" != *"Foomatic/$driver "* && "$foomatic_entries" != *"Foomatic/$driver\""* ]]; then
       printf "FAIL: advertised Ghostscript driver %s has no device or PPD entry\n" "$driver" >&2
       exit 1
     fi
@@ -177,7 +178,7 @@ for root, dirs, files in os.walk("/"):
             forbidden.append(os.path.join(root, directory))
     for name in files:
         path = os.path.join(root, name)
-        if name.endswith((".a", ".la")):
+        if name.endswith((".a", ".la", ".test")):
             forbidden.append(path)
         if os.path.islink(path):
             continue

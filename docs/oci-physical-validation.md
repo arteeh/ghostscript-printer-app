@@ -10,7 +10,7 @@ Run:
 just verify
 ```
 
-The x86_64 image has a 500 MiB (524,288,000-byte) uncompressed ceiling. The implementation baseline measured 449,525,881 bytes on 2026-09-16. `tests/appliance-parity.sh` measures the local image through Podman and fails above that ceiling. The gate also checks OCI metadata, payload inventory, absence of development content, interpreter policy, and every ELF dependency.
+The x86_64 image has a 500 MiB (524,288,000-byte) uncompressed ceiling. The implementation baseline measured 444,975,225 bytes on 2026-09-16. `tests/appliance-parity.sh` measures the local image through Podman and fails above that ceiling. The gate also checks OCI metadata, payload inventory, absence of development content, interpreter policy, and every ELF dependency.
 
 The OCI driver contract is the complete list under [Contained Printer Drivers](../README.md#contained-printer-drivers), not a sample. The FSDK image must retain every listed Ghostscript/Foomatic driver and every named external driver family. The parity gate requires each legacy Ghostscript name as either a compiled Ghostscript device or an exact Foomatic PPD entry, then separately checks all external driver, filter, backend, and PPD-provider families.
 

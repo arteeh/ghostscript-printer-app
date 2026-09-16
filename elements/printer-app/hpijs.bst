@@ -50,7 +50,7 @@ config:
     - make -j2 hpijs
     - |
       sed -i \
-        -e 's|^home=.*|home=/usr/share/hplip|' \
+        -e 's|^home=.*|home=/var/lib/ghostscript-printer-app/hplip|' \
         -e 's|^run=.*|run=/var/lib/ghostscript-printer-app/hplip/run|' \
         -e 's|^ppd=.*|ppd=/usr/share/ppd|' \
         -e 's|^ppdbase=.*|ppdbase=/usr/share/ppd|' \
@@ -59,6 +59,5 @@ config:
         hplip.conf
   install-commands:
     - install -D -m 0755 hpijs "%{install-root}/usr/bin/hpijs"
-    - install -d "%{install-root}/usr/share/hplip"
     - install -D -m 0644 hplip.conf "%{install-root}/usr/share/ghostscript-printer-app/defaults/hplip/hplip.conf"
     - mkdir -p "%{install-root}/etc/hp" && ln -s /var/lib/ghostscript-printer-app/hplip/hplip.conf "%{install-root}/etc/hp/hplip.conf"

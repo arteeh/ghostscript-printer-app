@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-podman_binary="$(command -v podman)"
-if ! "$podman_binary" info >/dev/null 2>&1; then
-  podman() { sudo "$podman_binary" "$@"; }
-fi
 
 image="ghcr.io/projectbluefin/ghostscript-printer-app:build"
 name="ghostscript-printer-app-stateful-drivers"
@@ -12,8 +8,21 @@ port="${PORT:-18040}"
 state_dir="$(mktemp -d)"
 
 cleanup() {
+  local status=$?
+  trap - EXIT
+  if ((status != 0)) && podman container exists "$name"; then
+    podman exec "$name" /usr/bin/bash -c '
+      for log in /tmp/stateful-drivers/*.log /tmp/m2300w.log; do
+        [[ -f "$log" ]] || continue
+        printf "==> %s\n" "$log" >&2
+        cat "$log" >&2
+      done
+    ' || true
+    podman logs "$name" >&2 || true
+  fi
   podman rm -f "$name" >/dev/null 2>&1 || true
   podman unshare rm -rf "$state_dir"
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -65,7 +74,6 @@ wait_for_http
 podman exec "$name" /usr/bin/bash -c '
   set -euo pipefail
   export PATH=/usr/lib/cups/filter:/usr/bin:/bin
-  export TMPDIR=/tmp
   state=/var/lib/ghostscript-printer-app
   work=/tmp/stateful-drivers
   mkdir -p "$work"
@@ -151,14 +159,34 @@ podman exec "$name" /usr/bin/bash -c '
   printf "OK: foo2zjs profile-backed conversion\n"
 
   for suffix in first second; do
+    foo2oak-wrapper "$work/page.ps" > "$work/foo2oak-$suffix.prn" 2> "$work/foo2oak-$suffix.log"
+    foo2hiperc-wrapper "$work/page.ps" > "$work/foo2hiperc-$suffix.prn" 2> "$work/foo2hiperc-$suffix.log"
+  done
+  assert_repeatable "$work/foo2oak-first.prn" "$work/foo2oak-second.prn"
+  [[ "$(od -An -tx1 -N 4 "$work/foo2oak-first.prn")" == " 4f 41 4b 54" ]]
+  (("$(stat -c %s "$work/foo2oak-first.prn")" > 1000))
+  assert_repeatable "$work/foo2hiperc-first.prn" "$work/foo2hiperc-second.prn"
+  [[ "$(od -An -tx1 -N 8 "$work/foo2hiperc-first.prn")" == " 1b 25 2d 31 32 33 34 35" ]]
+  (("$(stat -c %s "$work/foo2hiperc-first.prn")" > 1000))
+
+  for suffix in first second; do
     m2300w-wrapper "$work/page.ps" \
       > "$work/m2300w-$suffix.prn" 2> "$work/m2300w-$suffix.log"
   done
   assert_repeatable "$work/m2300w-first.prn" "$work/m2300w-second.prn"
   [[ "$(od -An -tx1 -N 4 "$work/m2300w-first.prn")" == " 1b 40 00 02" ]]
   (("$(stat -c %s "$work/m2300w-first.prn")" > 1000))
+  psnup -d2 -2 -m.2in -q < "$work/page.ps" > "$work/psnup.ps" 2> "$work/psnup.log"
+  [[ "$(od -An -tc -N 4 "$work/psnup.ps")" == "   %   !   P   S" ]]
+  (("$(stat -c %s "$work/psnup.ps")" > 1000))
   m2300w-wrapper -2 "$work/page.ps" > "$work/m2300w-nup.prn" 2> "$work/m2300w-nup.log"
-  test -s "$work/m2300w-nup.prn"
+  [[ "$(od -An -tx1 -N 4 "$work/m2300w-nup.prn")" == " 1b 40 00 02" ]]
+  (("$(stat -c %s "$work/m2300w-nup.prn")" > 1000))
+  test -s /tmp/m2300w.log
+  if grep -Eqi "command not found|fatal|error" /tmp/m2300w.log; then
+    cat /tmp/m2300w.log >&2
+    exit 1
+  fi
   printf "OK: m2300w profile-backed and psnup conversions\n"
 
   printf "# persistence-probe\n" >> "$state/hplip/hplip.conf"

@@ -1,4 +1,5 @@
 *.snap
+*.spdx.json
 .DS_Store
 .scratch/
 .worktrees/

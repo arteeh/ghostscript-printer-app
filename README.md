@@ -348,7 +348,7 @@ there is no `latest`, `edge`, or `stable` OCI tag.
 
 ### Run the published image
 
-Install Podman, then select an explicit release:
+Install Podman with a working rootless user namespace, then select an explicit release:
 
 ```sh
 version=10.07.1-1
