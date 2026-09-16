@@ -64,5 +64,8 @@ export:
 verify-core:
     tests/core-appliance.sh
 
+verify-payload:
+    tests/core-payload.sh
+
 verify-cups-patch-chain:
     tests/cups-patch-chain.sh
