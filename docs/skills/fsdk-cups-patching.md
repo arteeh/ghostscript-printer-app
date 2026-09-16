@@ -33,6 +33,7 @@ metadata:
 9. Match FSDK's multiarch install layout for every repository-built library. Define `gcc-triplet`, `lib`, and `libdir` in the root project and pass `--libdir=%{libdir}` to Autotools; FSDK's `pkg-config` searches `/usr/lib/<gcc-triplet>/pkgconfig`, not `/usr/lib/pkgconfig`.
 10. Do not `chown` high numeric runtime IDs inside the BuildStream sandbox; user-namespace mappings can reject them with `EINVAL`. After composition, reapply writable directory modes in the final OCI layer. Remove inherited `/run` service directories and let the numeric runtime user recreate them so ownership checks observe the actual user.
 11. Avahi's `--no-drop-root` still resolves its compiled `AVAHI_USER`/`AVAHI_GROUP` and requires its runtime directory to have those numeric IDs. Configure FSDK's Avahi build with `--with-avahi-user=nonroot --with-avahi-group=nonroot`; never create a second passwd/group name with UID/GID `65532`. Remove D-Bus's `<user>` directive so it does not attempt a second privilege drop, and patch Avahi policy at `/etc/dbus-1/system.d/avahi-dbus.conf`.
+12. Install repository-built CUPS filters into `/usr/lib/cups/filter`. The appliance exposes `/usr/lib/ghostscript-printer-app` as a symlink to `/usr/lib/cups`; creating a real `/usr/lib/ghostscript-printer-app/filter` directory in another artifact conflicts with that symlink during composition.
 
 ## Common Rationalizations
 
@@ -57,6 +58,7 @@ metadata:
 - Pre-creating Avahi's runtime directory as root; Avahi verifies it belongs to its compiled service UID even with `--no-drop-root`.
 - Giving `avahi` and `nonroot` the same UID/GID; numeric-to-name lookup becomes ambiguous and can hide a broken OCI identity.
 - Editing `/usr/share/dbus-1/system.d/avahi-dbus.conf`; the FSDK runtime installs that policy under `/etc/dbus-1/system.d/`.
+- Installing a driver artifact beneath `/usr/lib/ghostscript-printer-app/filter`; the canonical artifact path is `/usr/lib/cups/filter`, reached at runtime through the application symlink.
 
 ## Verification
 
