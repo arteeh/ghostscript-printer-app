@@ -28,4 +28,4 @@
 
 - [x] Run `just verify`, workflow lint, shell syntax checks, and `git diff --check`.
 - [x] Review the full diff from `feat/fsdk-stateful-drivers` and resolve all blocking findings.
-- [ ] Resolve issue 07, commit and push `feat/fsdk-appliance-parity`, and open a stacked PR based on `feat/fsdk-stateful-drivers`.
+- [x] Resolve issue 07, commit and push `feat/fsdk-appliance-parity`, and open a stacked PR based on `feat/fsdk-stateful-drivers`.
