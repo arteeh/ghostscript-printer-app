@@ -10,12 +10,14 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  actions: write
+  contents: write
+  pull-requests: write
 
 jobs:
   update:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,23 +43,16 @@ jobs:
       - name: Verify updated appliance
         if: steps.changes.outputs.changed == 'true'
         run: just verify
-      - name: Mint Mergeraptor token
-        if: steps.changes.outputs.changed == 'true'
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          app-id: ${{ secrets.MERGERAPTOR_APP_ID }}
-          private-key: ${{ secrets.MERGERAPTOR_PRIVATE_KEY }}
       - name: Commit and propose atomic update
         if: steps.changes.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           branch=auto/update-fsdk-sources
-          git config user.name 'mergeraptor[bot]'
-          git config user.email '${{ secrets.MERGERAPTOR_APP_ID }}+mergeraptor[bot]@users.noreply.github.com'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch --create "$branch"
           git add VERSION README.md elements
           git commit -m 'chore(deps): update FSDK appliance sources'
@@ -74,3 +69,4 @@ jobs:
               --title 'chore(deps): update FSDK appliance sources' \
               --body 'Automated atomic update of the freedesktop-sdk junction and repository-owned BuildStream sources. The workflow completed the CUPS patch-chain gate and full appliance verification before opening this PR. Auto-merge is intentionally disabled.'
           fi
+          gh workflow run ci.yml --ref "$branch"

@@ -2,7 +2,7 @@
 
 **Goal:** Propose atomic, fully verified updates for the FSDK junction and every repository-owned external BuildStream source while preserving the Snap updater as an independent lane.
 
-**Architecture:** Give every Git source a deliberate moving selector and immutable resolved ref, keep CPAN name/suffix/checksum contracts, and keep the plugin tarball's version/checksum explicit. A standard-library Python coordinator runs BuildStream tracking for the complete root graph, refreshes the PyPI plugin tarball, derives the application version from the newly selected FSDK Ghostscript source, synchronizes the IJS source and OCI FSDK labels, and validates the source inventory. A scheduled workflow runs the CUPS patch-chain gate and complete appliance gate before minting a short-lived Mergeraptor token and opening one non-auto-merged PR containing every related version/ref change. The existing updater becomes Snap-only.
+**Architecture:** Give every Git source a deliberate moving selector and immutable resolved ref, keep CPAN name/suffix/checksum contracts, and keep the plugin tarball's version/checksum explicit. A standard-library Python coordinator runs BuildStream tracking for the complete root graph, refreshes the PyPI plugin tarball, derives the application version from the newly selected FSDK Ghostscript source, synchronizes the IJS source and OCI FSDK labels, and validates the source inventory. A scheduled workflow runs the CUPS patch-chain gate and complete appliance gate before exposing its write-scoped `GITHUB_TOKEN`, then opens one non-auto-merged PR containing every related version/ref change and explicitly dispatches native CI. The existing updater becomes Snap-only.
 
 ## Task 1: Make every source trackable
 
@@ -20,9 +20,9 @@
 
 ## Task 3: Automate verified proposals
 
-- [x] Add a scheduled/manual FSDK-source workflow with read-only permissions during tracking and verification.
-- [x] Run `just verify-cups-patch-chain` and `just verify` before minting write credentials.
-- [x] Mint a short-lived Mergeraptor token only after verification, then commit all changes atomically and create or update one dependency PR.
+- [x] Add a scheduled/manual FSDK-source workflow that does not expose a write credential to tracking or verification shell steps.
+- [x] Run `just verify-cups-patch-chain` and `just verify` before exposing the write token.
+- [x] Expose the write-scoped `GITHUB_TOKEN` only after verification, then commit all changes atomically, create or update one dependency PR, and explicitly dispatch native CI.
 - [x] Never enable auto-merge in the updater; native PR CI remains the merge gate.
 - [x] Reduce the existing updater to the independent Snap dependency lane.
 

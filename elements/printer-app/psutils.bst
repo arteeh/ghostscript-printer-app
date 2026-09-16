@@ -4,7 +4,7 @@ description: Build the legacy psnup helper required by stateful driver wrappers.
 sources:
   - kind: git_repo
     url: salsa:debian/psutils.git
-    track: debian/*
+    track: debian/1.*
     ref: debian/1.17.dfsg-5-0-gafa3fccb4b77165a22b783f21feac35a082d8137
 
 build-depends:
