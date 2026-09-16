@@ -18,6 +18,9 @@ depends:
   - printer-app/pxljr.bst
   - printer-app/rastertosag-gdi.bst
   - printer-app/splix.bst
+  - printer-app/foo2zjs.bst
+  - printer-app/hpijs.bst
+  - printer-app/m2300w.bst
   - freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
   - freedesktop-sdk.bst:components/avahi.bst
   - freedesktop-sdk.bst:components/ca-certificates.bst

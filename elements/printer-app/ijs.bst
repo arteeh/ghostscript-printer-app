@@ -14,9 +14,10 @@ public:
   bst:
     split-rules:
       devel:
-        - "%{includedir}"
-        - "%{includedir}/**"
-        - "%{libdir}/libijs.so"
+        (>):
+          - "%{includedir}"
+          - "%{includedir}/**"
+          - "%{libdir}/libijs.so"
 
 config:
   build-commands:

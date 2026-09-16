@@ -7,13 +7,18 @@ if [[ -n "${PORT:-}" && ! "$PORT" =~ ^[0-9]+$ ]]; then
 fi
 
 state_dir=/var/lib/ghostscript-printer-app
-mkdir -p "$state_dir/ppd" "$state_dir/spool" "$state_dir/usb" "$state_dir/cups/ssl" "$state_dir/pnm2ppa" /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
+mkdir -p "$state_dir/ppd" "$state_dir/spool" "$state_dir/usb" "$state_dir/cups/ssl" "$state_dir/pnm2ppa" "$state_dir/hplip/run" "$state_dir/foo2zjs" "$state_dir/m2300w" /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
 if [[ ! -e "$state_dir/cups/snmp.conf" ]]; then
   cp /etc/cups/snmp.conf "$state_dir/cups/snmp.conf"
 fi
 if [[ ! -e "$state_dir/pnm2ppa/pnm2ppa.conf" ]]; then
   cp /usr/share/ghostscript-printer-app/pnm2ppa.conf "$state_dir/pnm2ppa/pnm2ppa.conf"
 fi
+if [[ ! -e "$state_dir/hplip/hplip.conf" ]]; then
+  cp /usr/share/ghostscript-printer-app/defaults/hplip/hplip.conf "$state_dir/hplip/hplip.conf"
+fi
+cp -a --no-clobber /usr/share/ghostscript-printer-app/defaults/foo2zjs/. "$state_dir/foo2zjs/"
+cp -a --no-clobber /usr/share/ghostscript-printer-app/defaults/m2300w/. "$state_dir/m2300w/"
 
 export BACKEND_DIR=/usr/lib/ghostscript-printer-app/backend
 export CUPS_SERVERBIN=/usr/lib/ghostscript-printer-app
