@@ -13,13 +13,27 @@ config:
   commands:
     - |
       install -d /layer/etc
-      printf '%s\n' 'nonroot:x:65532:65532:Printer Application:/var/lib/ghostscript-printer-app:/usr/sbin/nologin' >> /layer/etc/passwd
-      printf '%s\n' 'nonroot:x:65532:' >> /layer/etc/group
+      printf '%s\n' \
+        'root:x:0:0:root:/root:/usr/bin/bash' \
+        'avahi:x:65532:65532:Avahi:/run/avahi-daemon:/usr/sbin/nologin' \
+        'nonroot:x:65532:65532:Printer Application:/var/lib/ghostscript-printer-app:/usr/sbin/nologin' \
+        >> /layer/etc/passwd
+      printf '%s\n' \
+        'root:x:0:' \
+        'avahi:x:65532:' \
+        'nonroot:x:65532:' \
+        >> /layer/etc/group
+      rm -rf /layer/run/dbus /layer/run/avahi-daemon /layer/run/ghostscript-printer-app
+      chmod 0777 /layer/run
+      install -d -m 0777 \
+        /layer/var/lib/ghostscript-printer-app \
+        /layer/var/lib/ghostscript-printer-app/ppd \
+        /layer/var/spool/ghostscript-printer-app
       if [ -f /layer/usr/share/dbus-1/system.conf ]; then
-        sed -i 's/<user>messagebus<\/user>/<user>nonroot<\/user>/' /layer/usr/share/dbus-1/system.conf
+        sed -i '/<user>messagebus<\/user>/d; s/<policy user="root">/<policy user="nonroot">/g' /layer/usr/share/dbus-1/system.conf
       fi
-      if [ -f /layer/usr/share/dbus-1/system.d/avahi-dbus.conf ]; then
-        sed -i 's/<policy group="netdev">/<policy group="nonroot">/g; s/<policy user="root">/<policy user="nonroot">/g' /layer/usr/share/dbus-1/system.d/avahi-dbus.conf
+      if [ -f /layer/etc/dbus-1/system.d/avahi-dbus.conf ]; then
+        sed -i 's/<policy group="netdev">/<policy group="nonroot">/g; s/<policy user="root">/<policy user="nonroot">/g; s/<policy user="avahi">/<policy user="nonroot">/g' /layer/etc/dbus-1/system.d/avahi-dbus.conf
       fi
       cd "%{install-root}"
       build-oci <<EOF
