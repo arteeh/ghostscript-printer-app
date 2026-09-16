@@ -363,6 +363,7 @@ parts:
       - --prefix=/usr
       - --disable-avahi
       - --disable-mutool
+      - --without-jpegxl
     build-packages:
       - gettext
       - autoconf
