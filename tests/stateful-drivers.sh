@@ -81,6 +81,8 @@ podman exec "$name" /usr/bin/bash -c '
   test -L /etc/hp/hplip.conf
   [[ "$(readlink /etc/hp/hplip.conf)" == "$state/hplip/hplip.conf" ]]
   test -f "$state/hplip/hplip.conf"
+  test -d /usr/share/hplip
+  grep -Fxq "home=/usr/share/hplip" "$state/hplip/hplip.conf"
   test -f "$state/foo2zjs/foo2zjs/gamma.ps"
   test -f "$state/foo2zjs/foo2zjs/crd/screen1200.ps"
   test -f "$state/m2300w/0.51/psfiles/prolog.ps"
