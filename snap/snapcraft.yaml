@@ -897,7 +897,6 @@ parts:
       - --sysconfdir=/etc
     override-build: |
       set -eux
-      sed -i '1i#include <stdbool.h>' global.h
       # "Unlock" config file
       perl -p -i -e 's/^\s*version\s+0\s+/version 710 /' pnm2ppa.conf
       # Set config file path (we copy the config file to an editable place
