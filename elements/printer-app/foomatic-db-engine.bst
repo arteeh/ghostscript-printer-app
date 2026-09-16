@@ -10,6 +10,8 @@ sources:
     path: patches/foomatic-db-engine
 
 build-depends:
+  - printer-app/perl-clone.bst
+  - printer-app/perl-xml-libxml.bst
   - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
   - freedesktop-sdk.bst:components/cups-filters.bst
   - freedesktop-sdk.bst:components/curl.bst
@@ -26,4 +28,6 @@ config:
     - PERL_INSTALLDIRS=vendor ./configure --prefix=/usr --libdir="%{libdir}"
     - make -j1
   install-commands:
-    - make DESTDIR="%{install-root}" install
+    - make DESTDIR="$PWD/full-install" install
+    - install -D -m 0755 full-install/usr/sbin/foomatic-compiledb "%{install-root}/usr/bin/foomatic-compiledb"
+    - mkdir -p "%{install-root}/usr/lib" && cp -a full-install/usr/lib/perl5 "%{install-root}/usr/lib/"

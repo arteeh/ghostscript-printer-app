@@ -26,3 +26,15 @@ index 50990cc..cb46f5e 100644
  	$this->{'dbh'} = DBI->connect("dbi:SQLite:dbname=$sqlitedb","","")or
  	    warn $this->{'dbh'}->errstr;
  	$this->{'dbh'}->do('PRAGMA synchronous = OFF;');
+diff --git a/lib/Foomatic/filters/xml/to.pm b/lib/Foomatic/filters/xml/to.pm
+index 290c8c8..328a290 100644
+--- a/lib/Foomatic/filters/xml/to.pm
++++ b/lib/Foomatic/filters/xml/to.pm
+@@ -4,7 +4,6 @@ use strict;
+ use warnings;
+ use Data::Dumper;
+ 
+-use DBI;
+ use Foomatic::filters::phonebook;
+ use Foomatic::util;
+ use Foomatic::DB;
