@@ -175,7 +175,7 @@ git commit -m "build: add core FSDK printer application graph"
 
 - [x] **Step 3: Define OCI identity and process metadata**
 
-`elements/oci/ghostscript-printer-app.bst` must add matching passwd/group records for UID/GID `65532`, adjust FSDK D-Bus/Avahi policies to that identity, and emit this runtime configuration:
+`elements/oci/ghostscript-printer-app.bst` must add one matching passwd/group record for UID/GID `65532`, adjust FSDK D-Bus/Avahi policies to that identity, and emit this runtime configuration. The junction patch configures Avahi's compiled service user and group as `nonroot`; do not add a duplicate UID alias.
 
 ```yaml
 User: '65532:65532'
@@ -199,7 +199,9 @@ Run:
 just build
 podman image inspect ghcr.io/projectbluefin/ghostscript-printer-app:build --format '{{json .Config}}'
 podman run --rm --entrypoint /usr/bin/bash ghcr.io/projectbluefin/ghostscript-printer-app:build -c '
+  set -e
   test "$(id -u):$(id -g)" = 65532:65532
+  test "$(id -un)" = nonroot
   passwd_ok=0
   while IFS=: read -r name password uid gid gecos home shell; do
     [[ "$name:$uid:$gid" == "nonroot:65532:65532" ]] && passwd_ok=1
@@ -225,6 +227,8 @@ git commit -m "build: compose core FSDK OCI appliance"
 
 **Files:**
 - Modify: `files/container-entrypoint.sh`
+- Modify: `elements/oci/ghostscript-printer-app.bst`
+- Modify: `patches/freedesktop-sdk/0001-customize-cups-for-printer-application.patch`
 - Create: `tests/core-appliance.sh`
 - Modify: `Justfile`
 
@@ -240,18 +244,20 @@ The launcher must:
 set -euo pipefail
 ```
 
-Validate `PORT` with Bash's numeric regular expression, initialize state directories without overwriting existing files, export the repository runtime-path contract, start D-Bus and wait for `/run/dbus/system_bus_socket`, start Avahi and wait for `/run/avahi-daemon/pid`, then start `ghostscript-printer-app`. Track every child PID. On TERM, INT, EXIT, or the first required child exit, send TERM to all remaining children and wait for them.
+Validate `PORT` with Bash's numeric regular expression, initialize state directories and seed `cups/snmp.conf` only when absent, export the repository runtime-path contract, start D-Bus and wait for `/run/dbus/system_bus_socket`, start Avahi and wait for `/run/avahi-daemon/pid`, then start `ghostscript-printer-app`. Track every child PID. On TERM or INT, stop the application, Avahi, then D-Bus and retain TERM status `143`. Any unexpected required-child exit, including status `0`, must stop the remaining children and return nonzero.
 
 - [x] **Step 2: Extend the smoke check to assert the observable contract**
 
-`tests/core-appliance.sh` must build the image, start it with host networking and a temporary state volume, then execute these checks:
+`tests/core-appliance.sh` must build the image, start it without a `--user` override using host networking and a temporary state volume, require an application-specific HTTP title, then execute these checks:
 
 ```bash
-curl --fail --silent --show-error "http://127.0.0.1:${port}/" >/dev/null
-podman exec "$name" /usr/bin/bash -c 'test "$(id -u):$(id -g)" = 65532:65532'
+response="$(curl --fail --silent --show-error "http://127.0.0.1:${port}/")"
+[[ "$response" == *'<title>Ghostscript Printer Application</title>'* ]]
+podman exec "$name" /usr/bin/bash -c 'test "$(id -u):$(id -g):$(id -un)" = 65532:65532:nonroot'
 test -d "$state_dir/ppd"
 test -d "$state_dir/spool"
 test -d "$state_dir/cups/ssl"
+test -s "$state_dir/cups/snmp.conf"
 podman stop --time 15 "$name" >/dev/null
 read -r running exit_status <<< "$(podman inspect "$name" --format '{{.State.Running}} {{.State.ExitCode}}')"
 test "$running" = false
@@ -260,14 +266,14 @@ test "$exit_status" -eq 143
 
 Exit status `143` proves catatonit and the launcher completed the TERM path; Podman's timeout fallback would report SIGKILL status `137`.
 
-For child-failure propagation, start a second container, wait for HTTP readiness, and kill its D-Bus child without adding runtime packages:
+For child-failure propagation, start a second container, prove the edited persistent SNMP configuration survived, then terminate Avahi cleanly. The supervisor must still return nonzero because any required-child exit is a failure:
 
 ```bash
 podman exec "$failure_name" /usr/bin/bash -c '
   for proc in /proc/[0-9]*; do
     read -r comm < "$proc/comm" || continue
-    if [[ "$comm" == dbus-daemon ]]; then
-      kill -KILL "${proc##*/}"
+    if [[ "$comm" == avahi-daemon ]]; then
+      kill -TERM "${proc##*/}"
       exit 0
     fi
   done
@@ -293,7 +299,7 @@ Run:
 just verify-core
 ```
 
-Expected: the actual image reaches HTTP readiness as UID/GID `65532`, initializes the mounted state tree, exits cleanly on TERM, exits nonzero when D-Bus dies, and rejects an invalid port with status `64`.
+Expected: the actual image reaches its own HTTP interface as `nonroot` UID/GID `65532`, initializes and preserves the mounted state tree, exits with `143` on TERM rather than Podman's `137` timeout fallback, exits nonzero when Avahi exits cleanly, and rejects an invalid port with status `64`.
 
 - [x] **Step 4: Re-run the CUPS ownership gate**
 

@@ -15,12 +15,10 @@ config:
       install -d /layer/etc
       printf '%s\n' \
         'root:x:0:0:root:/root:/usr/bin/bash' \
-        'avahi:x:65532:65532:Avahi:/run/avahi-daemon:/usr/sbin/nologin' \
         'nonroot:x:65532:65532:Printer Application:/var/lib/ghostscript-printer-app:/usr/sbin/nologin' \
         >> /layer/etc/passwd
       printf '%s\n' \
         'root:x:0:' \
-        'avahi:x:65532:' \
         'nonroot:x:65532:' \
         >> /layer/etc/group
       rm -rf /layer/run/dbus /layer/run/avahi-daemon /layer/run/ghostscript-printer-app

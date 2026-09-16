@@ -8,6 +8,9 @@ fi
 
 state_dir=/var/lib/ghostscript-printer-app
 mkdir -p "$state_dir/ppd" "$state_dir/spool" "$state_dir/usb" "$state_dir/cups/ssl" /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
+if [[ ! -e "$state_dir/cups/snmp.conf" ]]; then
+  cp /etc/cups/snmp.conf "$state_dir/cups/snmp.conf"
+fi
 
 export BACKEND_DIR=/usr/lib/ghostscript-printer-app/backend
 export CUPS_SERVERBIN=/usr/lib/ghostscript-printer-app
@@ -24,13 +27,20 @@ export USB_QUIRK_DIR="$state_dir"
 
 children=()
 stop_children() {
-  local pid
-  for pid in "${children[@]}"; do
+  local index pid
+  for ((index = ${#children[@]} - 1; index >= 0; index--)); do
+    pid="${children[index]}"
     kill -TERM "$pid" 2>/dev/null || true
   done
   wait "${children[@]}" 2>/dev/null || true
 }
-trap stop_children TERM INT EXIT
+handle_signal() {
+  trap - TERM INT EXIT
+  stop_children
+  exit 143
+}
+trap handle_signal TERM INT
+trap stop_children EXIT
 
 dbus-daemon --system --nofork --nopidfile &
 children+=("$!")
@@ -55,8 +65,11 @@ fi
 ghostscript-printer-app "${args[@]}" server &
 children+=("$!")
 
-wait -n "${children[@]}"
-status=$?
+if wait -n "${children[@]}"; then
+  status=1
+else
+  status=$?
+fi
 stop_children
 trap - TERM INT EXIT
 exit "$status"

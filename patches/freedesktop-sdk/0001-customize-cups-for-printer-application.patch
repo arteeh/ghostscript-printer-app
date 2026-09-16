@@ -40,3 +40,15 @@ diff --git a/elements/components/cups.bst b/elements/components/cups.bst
  
  config:
    include:
+diff --git a/elements/components/_private/avahi-base.bst b/elements/components/_private/avahi-base.bst
+--- a/elements/components/_private/avahi-base.bst
++++ b/elements/components/_private/avahi-base.bst
+@@ -16,6 +16,8 @@ build-depends:
+ 
+ variables:
+   conf-local: >-
++    --with-avahi-user=nonroot
++    --with-avahi-group=nonroot
+     --with-distro=none
+     --disable-libevent
+     --disable-qt3

@@ -17,8 +17,9 @@ trap cleanup EXIT
 
 wait_for_http() {
   local target_port="$1"
+  local response
   for _ in $(seq 1 60); do
-    if curl --fail --silent --show-error "http://127.0.0.1:${target_port}/" >/dev/null 2>&1; then
+    if response="$(curl --fail --silent --show-error "http://127.0.0.1:${target_port}/" 2>/dev/null)" && [[ "$response" == *'<title>Ghostscript Printer Application</title>'* ]]; then
       return 0
     fi
     sleep 1
@@ -32,13 +33,13 @@ chmod 0777 "$state_dir"
 podman run -d \
   --name "$name" \
   --network host \
-  --user 65532:65532 \
   -e PORT="$port" \
   -v "$state_dir:/var/lib/ghostscript-printer-app:Z" \
   "$image" >/dev/null
 
 wait_for_http "$port"
 podman exec "$name" /usr/bin/bash -c '
+  set -e
   test "$(id -u):$(id -g)" = 65532:65532
   test "$(id -un)" = nonroot
   passwd_ok=0
@@ -54,6 +55,8 @@ podman exec "$name" /usr/bin/bash -c '
 test -d "$state_dir/ppd"
 test -d "$state_dir/spool"
 test -d "$state_dir/cups/ssl"
+test -s "$state_dir/cups/snmp.conf"
+podman exec "$name" /usr/bin/bash -c 'printf "%s\n" "# preserved" > /var/lib/ghostscript-printer-app/cups/snmp.conf'
 podman stop --time 15 "$name" >/dev/null
 read -r running exit_status <<< "$(podman inspect "$name" --format '{{.State.Running}} {{.State.ExitCode}}')"
 if [[ "$running" != false || "$exit_status" -ne 143 ]]; then
@@ -65,17 +68,17 @@ fi
 podman run -d \
   --name "$failure_name" \
   --network host \
-  --user 65532:65532 \
   -e PORT="$failure_port" \
   -v "$state_dir:/var/lib/ghostscript-printer-app:Z" \
   "$image" >/dev/null
 
 wait_for_http "$failure_port"
+podman exec "$failure_name" /usr/bin/bash -c 'test "$(< /var/lib/ghostscript-printer-app/cups/snmp.conf)" = "# preserved"'
 podman exec "$failure_name" /usr/bin/bash -c '
   for proc in /proc/[0-9]*; do
     read -r comm < "$proc/comm" || continue
-    if [[ "$comm" == dbus-daemon ]]; then
-      kill -KILL "${proc##*/}"
+    if [[ "$comm" == avahi-daemon ]]; then
+      kill -TERM "${proc##*/}"
       exit 0
     fi
   done
