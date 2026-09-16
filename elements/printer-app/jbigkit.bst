@@ -10,6 +10,14 @@ sources:
 build-depends:
   - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
 
+public:
+  bst:
+    split-rules:
+      devel:
+        - "%{includedir}/jbig85.h"
+        - "%{includedir}/jbig_ar.h"
+        - "%{libdir}/libjbig85.so"
+
 config:
   build-commands:
     - cc $CFLAGS -fPIC -Ilibjbig -c libjbig/jbig85.c -o jbig85.o

@@ -13,6 +13,8 @@ build-depends:
 
 depends:
   - freedesktop-sdk.bst:components/cups.bst
+  - freedesktop-sdk.bst:components/python3.bst
+  - freedesktop-sdk.bst:components/ghostscript.bst
 
 config:
   build-commands:
@@ -25,3 +27,5 @@ config:
     - install -D -m 0755 pdftopjlfx "%{install-root}/usr/lib/cups/filter/pdftopjlfx"
     - install -D -m 0755 pdftopdffx "%{install-root}/usr/lib/cups/filter/pdftopdffx"
     - install -D -m 0755 fxlinuxprint-ppds "%{install-root}/usr/share/ppd/fxlinuxprint-ppds"
+    - install -D -m 0644 mimefx.types "%{install-root}/usr/share/cups/mime/mimefx.types"
+    - install -D -m 0644 mimefx.convs "%{install-root}/usr/share/cups/mime/mimefx.convs"

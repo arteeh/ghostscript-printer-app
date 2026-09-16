@@ -8,12 +8,14 @@ sources:
     ref: debian/2.0.1-1-0-g505f24d43fdb86eaa41a44486e7ef88226bb2c0c
 
 build-depends:
-  - printer-app/jbigkit.bst
   - printer-app/pyppd.bst
   - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
 
 depends:
   - freedesktop-sdk.bst:components/cups.bst
+  - freedesktop-sdk.bst:components/python3.bst
+  - printer-app/jbigkit.bst
+  - freedesktop-sdk.bst:components/cups-filters.bst
 
 config:
   build-commands:
@@ -27,5 +29,4 @@ config:
   install-commands:
     - install -D -m 0755 optimized/pstoqpdl "%{install-root}/usr/lib/cups/filter/pstoqpdl"
     - install -D -m 0755 optimized/rastertoqpdl "%{install-root}/usr/lib/cups/filter/rastertoqpdl"
-    - install -D -m 0644 "%{libdir}/libjbig85.so.0" "%{install-root}%{libdir}/libjbig85.so.0"
     - install -D -m 0755 splix-ppds "%{install-root}/usr/share/ppd/splix-ppds"

@@ -10,6 +10,14 @@ sources:
 build-depends:
   - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 
+public:
+  bst:
+    split-rules:
+      devel:
+        - "%{includedir}"
+        - "%{includedir}/**"
+        - "%{libdir}/libijs.so"
+
 config:
   build-commands:
     - cd ijs && autoreconf --force --install && ./configure --prefix=/usr --libdir="%{libdir}" --enable-shared --disable-static

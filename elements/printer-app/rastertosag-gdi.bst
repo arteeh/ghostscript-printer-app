@@ -11,6 +11,9 @@ build-depends:
   - printer-app/pyppd.bst
   - freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 
+depends:
+  - freedesktop-sdk.bst:components/python3.bst
+
 config:
   build-commands:
     - pyppd -v -o rastertosag-gdi-ppds ppd

@@ -9,12 +9,15 @@ sources:
 
 build-depends:
   - printer-app/pyppd.bst
-  - freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
-  - freedesktop-sdk.bst:components/sed.bst
 
 depends:
   - freedesktop-sdk.bst:components/cups-filters.bst
+  - freedesktop-sdk.bst:components/cups-daemon-only.bst
+  - freedesktop-sdk.bst:components/grep.bst
+  - freedesktop-sdk.bst:components/sed.bst
   - freedesktop-sdk.bst:components/ghostscript.bst
+  - freedesktop-sdk.bst:components/python3.bst
+  - freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 
 config:
   build-commands:

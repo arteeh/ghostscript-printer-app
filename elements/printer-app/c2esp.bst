@@ -20,6 +20,7 @@ depends:
   - freedesktop-sdk.bst:components/libcupsfilters.bst
   - freedesktop-sdk.bst:components/libppd.bst
   - freedesktop-sdk.bst:components/cups-filters.bst
+  - freedesktop-sdk.bst:components/zlib.bst
 
 config:
   build-commands:

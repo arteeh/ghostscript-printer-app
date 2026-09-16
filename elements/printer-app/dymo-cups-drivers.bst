@@ -13,6 +13,7 @@ build-depends:
 
 depends:
   - freedesktop-sdk.bst:components/cups.bst
+  - freedesktop-sdk.bst:components/python3.bst
 
 config:
   build-commands:

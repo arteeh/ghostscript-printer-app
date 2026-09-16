@@ -16,6 +16,9 @@ depends:
   - freedesktop-sdk.bst:components/cups.bst
   - printer-app/ijs.bst
   - freedesktop-sdk.bst:components/jpeg.bst
+  - freedesktop-sdk.bst:components/python3.bst
+  - freedesktop-sdk.bst:components/cups-filters.bst
+  - freedesktop-sdk.bst:components/ghostscript.bst
 
 config:
   build-commands:
