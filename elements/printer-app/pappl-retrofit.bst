@@ -19,7 +19,7 @@ depends:
 config:
   configure-commands:
     - ./autogen.sh
-    - ./configure --prefix=/usr
+    - ./configure --prefix=/usr --libdir="%{libdir}"
   build-commands:
     - make -j2
   install-commands:

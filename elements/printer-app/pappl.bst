@@ -25,6 +25,7 @@ config:
     - |
       ./configure \
         --prefix=/usr \
+        --libdir="%{libdir}" \
         --disable-libpam \
         --disable-static \
         --enable-shared \
