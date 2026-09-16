@@ -311,6 +311,6 @@ git diff --check
 
 Expected: every command succeeds.
 
-- [ ] **Step 4: Resolve and publish the slice**
+- [x] **Step 4: Resolve and publish the slice**
 
 Set `.scratch/fsdk-container-modernization/issues/03-serve-core-ppd-filter-payload.md` to `resolved`, record exact successful commands and commit IDs, commit this completed plan, push `feat/fsdk-core-payload`, and open a pull request with base `feat/fsdk-core-app`. Do not publish an OCI release.
