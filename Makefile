@@ -31,16 +31,16 @@ CFLAGS		+=	`pkg-config --cflags pappl` `cups-config --cflags` `pkg-config --cfla
 ifdef VERSION
 CFLAGS		+=	-DSYSTEM_VERSION_STR="\"$(VERSION)\""
 ifndef MAJOR
-MAJOR		=	`echo $(VERSION) | perl -p -e 's/^(\d+).*$$/\1/'`
+MAJOR		=	`echo $(VERSION) | perl -p -e 's/^(\d+).*$$/\1/; s/^0+(\d)/\1/'`
 endif
 ifndef MINOR
-MINOR		=	`echo $(VERSION) | perl -p -e 's/^\d+\D+(\d+).*$$/\1/'`
+MINOR		=	`echo $(VERSION) | perl -p -e 's/^\d+\D+(\d+).*$$/\1/; s/^0+(\d)/\1/'`
 endif
 ifndef PATCH
-PATCH		=	`echo $(VERSION) | perl -p -e 's/^\d+\D+\d+\D+(\d+).*$$/\1/'`
+PATCH		=	`echo $(VERSION) | perl -p -e 's/^\d+\D+\d+\D+(\d+).*$$/\1/; s/^0+(\d)/\1/'`
 endif
 ifndef PACKAGE
-PACKAGE		=	`echo $(VERSION) | perl -p -e 's/^\d+\D+\d+\D+\d+\D+(\d+).*$$/\1/'`
+PACKAGE		=	`echo $(VERSION) | perl -p -e 's/^\d+\D+\d+\D+\d+\D+(\d+).*$$/\1/; s/^0+(\d)/\1/'`
 endif
 endif
 ifdef MAJOR
