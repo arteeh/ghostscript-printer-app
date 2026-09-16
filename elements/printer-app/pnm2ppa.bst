@@ -13,7 +13,7 @@ build-depends:
 config:
   build-commands:
     - sed -i 's/^version[[:space:]]\+0[[:space:]]\+/version 710 /' pnm2ppa.conf
-    - autoreconf --install
+    - autoreconf --force --install
     - ./configure --prefix=/usr --sysconfdir=/var/lib/ghostscript-printer-app/pnm2ppa
     - make -j2
   install-commands:
