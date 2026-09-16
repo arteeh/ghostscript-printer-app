@@ -40,6 +40,9 @@ jobs:
       - name: Verify CUPS patch compatibility
         if: steps.changes.outputs.changed == 'true'
         run: just verify-cups-patch-chain
+      - name: Fetch updated sources with retries
+        if: steps.changes.outputs.changed == 'true'
+        run: just fetch
       - name: Verify updated appliance
         if: steps.changes.outputs.changed == 'true'
         run: just verify
