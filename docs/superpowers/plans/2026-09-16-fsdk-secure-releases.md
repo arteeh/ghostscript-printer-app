@@ -37,4 +37,4 @@
 
 - [x] Run `just verify`, workflow lint, shell syntax checks, version-contract checks, and `git diff --check`.
 - [x] Review the full diff from `feat/fsdk-appliance-parity` and resolve all blocking findings.
-- [ ] Resolve issue 08, commit and push `feat/fsdk-secure-releases`, and open a stacked PR based on `feat/fsdk-appliance-parity`.
+- [x] Resolve issue 08, commit and push `feat/fsdk-secure-releases`, and open a stacked PR based on `feat/fsdk-appliance-parity`.
