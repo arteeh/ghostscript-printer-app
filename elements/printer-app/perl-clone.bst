@@ -9,6 +9,7 @@ depends:
 
 sources:
   - kind: cpan
+    index: "cpan:"
     name: Clone
     suffix: authors/id/A/AT/ATOOMIC/Clone-0.50.tar.gz
     sha256sum: f9732a4a857974db30905233589113003301b585b0cecda29a21cfba5bb014f9

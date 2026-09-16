@@ -13,6 +13,7 @@ depends:
 
 sources:
   - kind: cpan
+    index: "cpan:"
     name: XML::LibXML
     suffix: authors/id/T/TO/TODDR/XML-LibXML-2.0213.tar.gz
     sha256sum: 2af21c5d61ac34ea26a5fabf15ba5a5841e648f7189db3e33b6f28b5489802ab
