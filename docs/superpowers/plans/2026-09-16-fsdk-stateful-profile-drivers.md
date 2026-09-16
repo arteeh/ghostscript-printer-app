@@ -32,4 +32,4 @@
 
 - [x] Run `just validate`, all prior slice gates, `just verify-stateful-drivers`, workflow lint, shell syntax checks, and `git diff --check`.
 - [x] Review the full diff from `feat/fsdk-packaged-drivers` and resolve all blocking findings.
-- [ ] Resolve issue 06, commit and push `feat/fsdk-stateful-drivers`, and open a stacked PR based on `feat/fsdk-packaged-drivers`.
+- [x] Resolve issue 06, commit and push `feat/fsdk-stateful-drivers`, and open a stacked PR based on `feat/fsdk-packaged-drivers`.
