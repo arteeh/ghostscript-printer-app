@@ -4,7 +4,7 @@ description: Build the P-Touch CUPS raster filter and Foomatic PPD archive.
 sources:
   - kind: git_repo
     url: salsa:printing-team/ptouch-driver.git
-    track: debian/1.7-1
+    track: debian/*
     ref: debian/1.7-1-0-gccfa92351be3ce601f212048b174147a5496d8be
 
 build-depends:

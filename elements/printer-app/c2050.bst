@@ -4,7 +4,7 @@ description: Build the c2050 Lexmark raster converter.
 sources:
   - kind: git_repo
     url: salsa:printing-team/c2050.git
-    track: debian/0.3-7
+    track: debian/*
     ref: debian/0.3-7-0-ge2ee50d2da58e552b1ac70ae0b4d8913436921e1
   - kind: patch_queue
     path: patches/c2050

@@ -4,7 +4,7 @@ description: Build the DYMO CUPS raster filters and PPD archive.
 sources:
   - kind: git_repo
     url: salsa:printing-team/dymo-cups-drivers.git
-    track: debian/1.4.0-12
+    track: debian/*
     ref: debian/1.4.0-12-0-ge69dceba792dc23d2894d57b0468009e52109625
 
 build-depends:

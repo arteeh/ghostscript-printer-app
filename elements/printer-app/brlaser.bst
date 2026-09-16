@@ -4,7 +4,7 @@ description: Build the brlaser Brother laser raster filter.
 sources:
   - kind: git_repo
     url: github:pdewacht/brlaser.git
-    track: v6
+    track: v*
     ref: v6-0-g23117fe9e0266396e4791cdae84d979928aed135
 
 build-depends:

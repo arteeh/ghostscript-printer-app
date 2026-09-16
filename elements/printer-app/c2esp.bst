@@ -4,7 +4,7 @@ description: Build the c2esp Kodak raster filters and driver descriptions.
 sources:
   - kind: git_repo
     url: salsa:printing-team/c2esp.git
-    track: debian/27-11
+    track: debian/*
     ref: debian/27-11-0-g90a09ca4927fca5e1ae08307cd3ca9c0f0ca5b5b
   - kind: local
     path: patches/c2esp-libcupsfilters2-api.patch

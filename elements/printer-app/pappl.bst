@@ -4,7 +4,7 @@ description: Build PAPPL for the Ghostscript Printer Application.
 sources:
   - kind: git_repo
     url: github:michaelrsweet/pappl.git
-    track: v1.4.12
+    track: v1.4.*
     ref: v1.4.12-0-g6db8e137557ad84662e78d24fdb2a591c621f4ac
   - kind: patch_queue
     path: patches/pappl

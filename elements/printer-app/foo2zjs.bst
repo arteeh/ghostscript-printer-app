@@ -4,7 +4,7 @@ description: Build foo2zjs drivers with persistent color-profile paths.
 sources:
   - kind: git_repo
     url: salsa:printing-team/foo2zjs.git
-    track: debian/20200505dfsg0-5
+    track: debian/*
     ref: debian/20200505dfsg0-5-0-g816bcd01d5fa0b3171fe6d09c093a9290ccf7c25
 
 build-depends:

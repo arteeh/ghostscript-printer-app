@@ -4,7 +4,7 @@ description: Build the pxljr HP Color LaserJet IJS driver and PPD archive.
 sources:
   - kind: git_repo
     url: salsa:printing-team/pxljr.git
-    track: debian/1.4+repack0-6
+    track: debian/*
     ref: debian/1.4+repack0-6-0-g6b0dafe66965e5fa398733c04160bd6436d13254
 
 build-depends:

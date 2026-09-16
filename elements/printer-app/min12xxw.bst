@@ -4,7 +4,7 @@ description: Build the min12xxw Minolta raster converter.
 sources:
   - kind: git_repo
     url: salsa:printing-team/min12xxw.git
-    track: debian/0.0.9-11
+    track: debian/*
     ref: debian/0.0.9-11-0-g9a1fae0987e757c8d04e728eaec6e7adc1efca89
 
 build-depends:

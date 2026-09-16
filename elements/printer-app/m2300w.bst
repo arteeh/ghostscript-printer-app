@@ -4,7 +4,7 @@ description: Build the m2300w drivers with persistent color-profile paths.
 sources:
   - kind: git_repo
     url: salsa:printing-team/m2300w.git
-    track: debian/0.51-15
+    track: debian/*
     ref: debian/0.51-15-0-gf4ebe31fe93e8f2f56ecce2f927e59bb41432d53
 
 build-depends:

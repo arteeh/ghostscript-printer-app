@@ -4,7 +4,7 @@ description: Build the HPLIP HPIJS driver with persistent appliance configuratio
 sources:
   - kind: git_repo
     url: salsa:printing-team/hplip.v2.git
-    track: debian/3.26.4+dfsg0-3
+    track: debian/*
     ref: debian/3.26.4+dfsg0-3-0-gf27f786d5f1060cce7c92e42488bd5e5d00ba135
 
 build-depends:
