@@ -6,7 +6,7 @@
 
 **Architecture:** Reuse FSDK's existing printing artifacts without rebuilding or duplicating them. Build only pyppd and the Foomatic XML compiler that FSDK does not ship, generate the same three self-extracting PPD archives as the current OCI contract, and compose those archives with FSDK's filters plus their measured runtime dependencies. Verify the exported image, not BuildStream source text.
 
-**Tech Stack:** BuildStream 2, freedesktop-sdk 26.08rc.1, cups-filters 2.0.1, Foomatic DB 20240504, foomatic-db-engine 4.1.0, pyppd 1.1.0, Python 3, xz, Podman, socat.
+**Tech Stack:** BuildStream 2, freedesktop-sdk 26.08rc.1, cups-filters 2.0.1, Foomatic DB 20240504, foomatic-db-engine 4.1.0, pyppd 1.1.0, Python 3, xz, Podman.
 
 ## Global Constraints
 
@@ -28,9 +28,9 @@
 
 **Interfaces:**
 - Consumes: FSDK Python, Perl, XML::Parser, curl, file, gzip, cups-filters, and Foomatic database artifacts.
-- Produces: build-time `/usr/bin/pyppd` and `/usr/sbin/foomatic-compiledb` commands.
+- Produces: build-time `/usr/bin/pyppd` and `/usr/bin/foomatic-compiledb` commands.
 
-- [ ] **Step 1: Add the pyppd element**
+- [x] **Step 1: Add the pyppd element**
 
 Create `elements/printer-app/pyppd.bst`:
 
@@ -52,11 +52,11 @@ sources:
     ref: release-1-1-0-0-g29ccf6cf85781315a696774e7458a2f1f61aac57
 ```
 
-- [ ] **Step 2: Make Foomatic's XML-only path independent of DBI**
+- [x] **Step 2: Make Foomatic's XML-only path independent of DBI**
 
 Create `patches/foomatic-db-engine/xml-database-without-dbi.patch` that removes the unconditional `use DBI;` from `lib/Foomatic/DB.pm` and adds `require DBI;` only inside the MySQL and SQLite branches of `connect_to_mysql_db()`. The XML database path used by `foomatic-compiledb` must not require an unavailable SQL driver.
 
-- [ ] **Step 3: Add the Foomatic engine element**
+- [x] **Step 3: Add the Foomatic engine element**
 
 Create `elements/printer-app/foomatic-db-engine.bst` with immutable commit `e4e7b9cd28ba160428f82bc5234559d1f50e5c42`, the DBI patch queue, and these build dependencies:
 
@@ -82,10 +82,12 @@ config:
     - PERL_INSTALLDIRS=vendor ./configure --prefix=/usr --libdir="%{libdir}"
     - make -j1
   install-commands:
-    - make DESTDIR="%{install-root}" install
+    - make DESTDIR="$PWD/full-install" install
+    - install -D -m 0755 full-install/usr/sbin/foomatic-compiledb "%{install-root}/usr/bin/foomatic-compiledb"
+    - mkdir -p "%{install-root}/usr/lib" && cp -a full-install/usr/lib/perl5 "%{install-root}/usr/lib/"
 ```
 
-- [ ] **Step 4: Verify both tools build**
+- [x] **Step 4: Verify both tools build**
 
 Run:
 
@@ -94,9 +96,9 @@ just bst build printer-app/pyppd.bst printer-app/foomatic-db-engine.bst
 just bst artifact list-contents printer-app/pyppd.bst printer-app/foomatic-db-engine.bst
 ```
 
-Expected: the artifacts contain `/usr/bin/pyppd` and `/usr/sbin/foomatic-compiledb`; no second CUPS library is introduced.
+Expected: the artifacts contain `/usr/bin/pyppd` and `/usr/bin/foomatic-compiledb`; no second CUPS library is introduced.
 
-- [ ] **Step 5: Commit the tooling**
+- [x] **Step 5: Commit the tooling**
 
 ```bash
 git add elements/printer-app/pyppd.bst elements/printer-app/foomatic-db-engine.bst patches/foomatic-db-engine/xml-database-without-dbi.patch
@@ -112,11 +114,11 @@ git commit -m "build: add core PPD generation tools" -m "Assisted-by: github-cop
 - Consumes: FSDK cups-filters PPDs and Foomatic XML/manufacturer data plus the Task 1 generators.
 - Produces: executable `/usr/share/ppd/cups-filters-ppds`, `/usr/share/ppd/foomatic-ppds`, and `/usr/share/ppd/manufacturer-ppds` archives.
 
-- [ ] **Step 1: Stage source payloads and generators**
+- [x] **Step 1: Stage source payloads and generators**
 
 Create a `manual` element with build dependencies on `printer-app/pyppd.bst`, `printer-app/foomatic-db-engine.bst`, `freedesktop-sdk.bst:components/cups-filters.bst`, `freedesktop-sdk.bst:components/foomatic-db.bst`, and `freedesktop-sdk.bst:public-stacks/runtime-gnu.bst`.
 
-- [ ] **Step 2: Generate the cups-filters archive**
+- [x] **Step 2: Generate the cups-filters archive**
 
 The build commands must copy `/usr/share/ppd/cupsfilters` to `payload/cupsfilters` and run:
 
@@ -124,7 +126,7 @@ The build commands must copy `/usr/share/ppd/cupsfilters` to `payload/cupsfilter
 pyppd -v -o cups-filters-ppds payload/cupsfilters
 ```
 
-- [ ] **Step 3: Generate the Foomatic archives**
+- [x] **Step 3: Generate the Foomatic archives**
 
 Copy `/usr/share/foomatic` to `payload/foomatic`, remove PostScript manufacturer PPDs and the unsupported driver XML files carried by the current Snap contract:
 
@@ -141,11 +143,11 @@ pyppd -v -o foomatic-ppds payload/foomatic-ppds
 pyppd -v -o manufacturer-ppds payload/foomatic/db/source/PPD
 ```
 
-- [ ] **Step 4: Install only generated archives**
+- [x] **Step 4: Install only generated archives**
 
 Install the three executable archives with mode `0755` beneath `%{install-root}/usr/share/ppd`. Do not carry the Foomatic compiler, raw XML database, or pyppd package into this artifact.
 
-- [ ] **Step 5: Build and inspect the payload artifact**
+- [x] **Step 5: Build and inspect the payload artifact**
 
 Run:
 
@@ -156,7 +158,7 @@ just bst artifact list-contents printer-app/core-payload.bst
 
 Expected: exactly the three executable archive files appear under `/usr/share/ppd`.
 
-- [ ] **Step 6: Commit the generated-payload element**
+- [x] **Step 6: Commit the generated-payload element**
 
 ```bash
 git add elements/printer-app/core-payload.bst
@@ -174,17 +176,29 @@ git commit -m "build: generate core PPD archives" -m "Assisted-by: github-copilo
 - Consumes: `printer-app/core-payload.bst` and FSDK runtime components.
 - Produces: `just verify-payload`, proving driver archives, filters, interpreters, HTTPS, and shared-library closure inside the exported image.
 
-- [ ] **Step 1: Write the failing image-level payload check**
+- [x] **Step 1: Write the failing image-level payload check**
 
 Create `tests/core-payload.sh`. It must run `just build`, then assert from the image that:
 
 ```text
 /usr/lib/ghostscript-printer-app -> /usr/lib/cups
+/usr/lib/cups/backend/dnssd
+/usr/lib/cups/backend/ipp
+/usr/lib/cups/backend/ipps
+/usr/lib/cups/backend/lpd
+/usr/lib/cups/backend/snmp
+/usr/lib/cups/backend/socket
+/usr/lib/cups/backend/usb
 /usr/lib/cups/filter/foomatic-rip
 /usr/lib/cups/filter/gstoraster
 /usr/lib/cups/filter/pdftops
 /usr/lib/cups/filter/rastertoescpx
 /usr/lib/cups/filter/rastertopclx
+/usr/lib/cups/filter/rastertoepson
+/usr/lib/cups/filter/rastertohp
+/usr/lib/cups/filter/rastertolabel
+/usr/bin/ghostscript-printer-app
+/usr/bin/gs
 /usr/share/ghostscript-printer-app/testpage.ps
 /usr/share/ppd/cups-filters-ppds
 /usr/share/ppd/foomatic-ppds
@@ -195,7 +209,7 @@ Create `tests/core-payload.sh`. It must run `just build`, then assert from the i
 
 For each archive, run `list`, capture its first URI, run `cat <URI>`, and require the extracted text to contain `*PPD-Adobe:`. Run this check now; it must fail because the payload is not yet composed.
 
-- [ ] **Step 2: Add runtime components**
+- [x] **Step 2: Add runtime components**
 
 Add these dependencies to `core-stack.bst`:
 
@@ -209,15 +223,15 @@ Add these dependencies to `core-stack.bst`:
 
 Keep the existing Ghostscript, CUPS, libppd, and libcupsfilters dependencies.
 
-- [ ] **Step 3: Verify HTTP and HTTPS**
+- [x] **Step 3: Verify HTTP and HTTPS**
 
 The payload test starts the real image on host networking, waits for `<title>Ghostscript Printer Application</title>` over HTTP, and requires the same title over HTTPS with `curl --insecure`.
 
-- [ ] **Step 4: Verify ELF closure**
+- [x] **Step 4: Verify ELF closure**
 
 Inside the image, run `ldd` for the application and each core filter listed in Step 1. Fail if any output contains `not found`.
 
-- [ ] **Step 5: Add the verification command**
+- [x] **Step 5: Add the verification command**
 
 Add to `Justfile`:
 
@@ -226,7 +240,7 @@ verify-payload:
     tests/core-payload.sh
 ```
 
-- [ ] **Step 6: Run and commit the runtime checks**
+- [x] **Step 6: Run and commit the runtime checks**
 
 Run:
 
@@ -245,35 +259,43 @@ git commit -m "test: verify core driver payload" -m "Assisted-by: github-copilot
 
 **Files:**
 - Modify: `tests/core-payload.sh`
+- Modify: `ghostscript-printer-app.c`
+- Modify: `elements/freedesktop-sdk.bst`
+- Modify: `patches/freedesktop-sdk/0001-customize-cups-for-printer-application.patch`
+- Create: `patches/libcupsfilters/avoid-global-option-lock-after-fork.patch`
+- Create: `tests/socket-sink.py`
 
 **Interfaces:**
-- Consumes: running Printer Application, `cups-filters-ppds:Generic-PDF_Printer-PDF.ppd`, repository test page, and host `socat`.
-- Produces: non-empty printer-language output captured from a real submitted job.
+- Consumes: running Printer Application, the generated Generic PCL 6/PCL XL Foomatic driver, repository test page, and a host Python socket sink.
+- Produces: non-empty PCL XL output captured from a real submitted job.
 
-- [ ] **Step 1: Add the socket-backed printer test**
+- [x] **Step 1: Add the socket-backed printer test**
 
 Start a one-shot host sink before the container:
 
 ```bash
-socat -u "TCP-LISTEN:${sink_port},reuseaddr" "OPEN:${output_file},creat,trunc" &
+python3 tests/socket-sink.py "$sink_port" "$output_file" &
 sink_pid=$!
 ```
 
-After HTTP/HTTPS readiness, run inside the image:
+After HTTP/HTTPS readiness, add a Generic PCL 6/PCL XL printer and invoke its built-in test-page action:
 
 ```bash
-ghostscript-printer-app -u "ipp://127.0.0.1:${port}/ipp/system" add core-test \
-  -m cups-filters-ppds:Generic-PDF_Printer-PDF.ppd \
-  -v "cups:socket://127.0.0.1:${sink_port}"
 ghostscript-printer-app -u "ipp://127.0.0.1:${port}/ipp/system" \
-  -d core-test submit /usr/share/ghostscript-printer-app/testpage.ps
+  -d core-test \
+  -m generic--pcl-6-pcl-xl-printer--pxlcolor-recommended-en \
+  -v "cups:socket://127.0.0.1:${sink_port}" add
+curl --data 'action=print-test-page' \
+  "http://127.0.0.1:${port}/core-test/"
 ```
 
-- [ ] **Step 2: Assert conversion output**
+The application must request the installed `testpage.ps`. Patch FSDK's libcupsfilters 2.2.1 so `cfFilterExternal()` merges borrowed option records without calling libcups' globally locked string pool after `cfFilterPOpen()` forks. Preserve case-insensitive replacement and the `cupsPrintQuality`/`print-quality` alias rule.
 
-Poll until `${output_file}` is non-empty, then require its first five bytes to be `%PDF-`. A successful CLI return without captured output is a failure.
+- [x] **Step 2: Assert conversion output**
 
-- [ ] **Step 3: Re-run all slice gates**
+Poll until `${output_file}` is non-empty, wait for the sink and print job to complete, then require the PJL/PCL stream to start with `ESC%-12345X`. A successful CLI return without captured output is a failure.
+
+- [x] **Step 3: Re-run all slice gates**
 
 Run:
 
