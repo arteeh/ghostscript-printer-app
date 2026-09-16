@@ -1,0 +1,28 @@
+diff --git a/lib/Foomatic/DB.pm b/lib/Foomatic/DB.pm
+index 50990cc..cb46f5e 100644
+--- a/lib/Foomatic/DB.pm
++++ b/lib/Foomatic/DB.pm
+@@ -14,7 +14,6 @@ use Encode;
+ use Foomatic::Defaults qw(:DEFAULT $DEBUG);
+ use Foomatic::filters::xml::xmlParse;
+ use Foomatic::filters::xml::to;
+-use DBI;
+ use Data::Dumper;
+ use POSIX;                      # for rounding integers
+ use strict;
+@@ -93,6 +92,7 @@ sub connect_to_mysql_db {
+ 	$mysqlconf{'user'} = 'root' if !$mysqlconf{'user'};
+ 	$mysqlconf{'password'} = '' if !$mysqlconf{'password'};
+ 	$mysqlconf{'database'} = 'openprinting' if !$mysqlconf{'database'};
++	require DBI;
+ 	$this->{'dbh'} = DBI->connect("dbi:mysql:database=" .
+ 	                              $mysqlconf{'database'} . ';host=' .
+ 				      $mysqlconf{'server'},
+@@ -103,6 +103,7 @@ sub connect_to_mysql_db {
+ 	$this->{'dbtype'} = 'mysql';
+     } elsif(-r $sqlitedb) {
+ 	$sqlitedb = "$libdir/db/openprinting.db";
++	require DBI;
+ 	$this->{'dbh'} = DBI->connect("dbi:SQLite:dbname=$sqlitedb","","")or
+ 	    warn $this->{'dbh'}->errstr;
+ 	$this->{'dbh'}->do('PRAGMA synchronous = OFF;');
