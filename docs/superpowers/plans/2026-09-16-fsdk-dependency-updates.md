@@ -30,4 +30,4 @@
 
 - [x] Run source-inventory checks, an isolated updater smoke, `just verify`, workflow lint, script syntax checks, and `git diff --check`.
 - [x] Review the full diff from `feat/fsdk-secure-releases` and resolve all blocking findings.
-- [ ] Resolve issue 09, commit and push `feat/fsdk-dependency-updates`, and open a stacked PR based on `feat/fsdk-secure-releases`.
+- [x] Resolve issue 09, commit and push `feat/fsdk-dependency-updates`, and open a stacked PR based on `feat/fsdk-secure-releases`.
