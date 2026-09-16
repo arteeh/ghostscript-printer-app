@@ -2,7 +2,7 @@
 
 **Goal:** Build and verify native amd64/arm64 FSDK appliances on pull requests, and publish an immutable, attestable multi-architecture GHCR release only when a Git tag exactly matches the packaged application version.
 
-**Architecture:** Make the application version a repository-level source consumed by both the application build and OCI metadata. Keep pull-request CI read-only and run the complete `just verify` gate on native GitHub-hosted x86_64 and arm64 runners. A separate tag-only release workflow builds and verifies both architectures, adds release-specific config labels, pushes immutable architecture manifests, assembles one versioned OCI index with matching annotations, attaches two SPDX JSON documents, keyless-signs the index and SBOM artifact, creates GitHub provenance, and verifies every published object. No mutable channel tag is created.
+**Architecture:** Make the application version a repository-level source consumed by both the application build and OCI metadata. Keep pull-request CI read-only and run the complete `just verify` gate on native GitHub-hosted x86_64 and arm64 runners. A separate tag-only release workflow builds and verifies both architectures, adds release-specific config labels, pushes immutable architecture manifests, assembles one versioned OCI index with matching annotations, attaches a BuildStream-native SPDX document for the complete dependency graph, keyless-signs the index and SBOM artifact, creates GitHub provenance, and verifies every published object. No mutable channel tag is created.
 
 ## Task 1: Establish canonical release metadata
 
@@ -28,7 +28,7 @@
 
 ## Task 4: Attach and verify supply-chain evidence
 
-- [x] Generate SPDX JSON SBOMs for both index platforms and attach them to the index as one OCI referrer artifact.
+- [x] Generate a BuildStream-native SPDX JSON SBOM for the complete dependency graph and attach it to the index as an OCI referrer artifact.
 - [x] Keyless-sign the image index and SBOM artifact with GitHub OIDC.
 - [x] Publish GitHub build provenance for the index digest.
 - [x] Verify the index platforms, OCI annotations, keyless signature, SBOM referrer/signature, and GitHub attestation after publication.

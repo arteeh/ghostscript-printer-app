@@ -3,7 +3,8 @@ description: Build the JBIG and JBIG85 shared libraries required by legacy drive
 
 sources:
   - kind: git_repo
-    url: https://www.cl.cam.ac.uk/~mgk25/git/jbigkit
+    url: github:qyot27/jbigkit.git
+    # Upstream is intermittently unreachable from hosted CI; this exact mirror tag is immutable.
     track: v2.1
     ref: v2.1-0-g60bd8bd6579c12e5e3a24782bd49af2046a9738a
 

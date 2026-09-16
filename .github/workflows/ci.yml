@@ -20,7 +20,7 @@ jobs:
           - arch: aarch64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 180
+    timeout-minutes: 360
     permissions:
       contents: read
     steps:
@@ -32,6 +32,8 @@ jobs:
           tool: just
       - name: Install host dependencies
         run: sudo apt-get update && sudo apt-get install --yes fuse3 podman
+      - name: Fetch sources with retries
+        run: just fetch
       - name: Build and verify FSDK appliance
         run: just verify
 
@@ -44,6 +46,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Build Snap Package
-        uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1
+      - name: Build Snap package
         id: snapcraft
+        continue-on-error: true
+        uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1
+      - name: Retry Snap build after transient failure
+        if: steps.snapcraft.outcome == 'failure'
+        uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1
