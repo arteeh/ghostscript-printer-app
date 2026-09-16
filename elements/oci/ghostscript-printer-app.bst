@@ -23,6 +23,7 @@ config:
         >> /layer/etc/group
       rm -rf /layer/run/dbus /layer/run/avahi-daemon /layer/run/ghostscript-printer-app
       chmod 0777 /layer/run
+      install -d -m 1777 /layer/tmp
       install -d -m 0777 \
         /layer/var/lib/ghostscript-printer-app \
         /layer/var/lib/ghostscript-printer-app/ppd \

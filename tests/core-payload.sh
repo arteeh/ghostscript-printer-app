@@ -5,10 +5,18 @@ image="ghcr.io/projectbluefin/ghostscript-printer-app:build"
 name="ghostscript-printer-app-payload"
 port="${PORT:-18010}"
 state_dir="$(mktemp -d)"
+sink_port="$((port + 1000))"
+output_file="$(mktemp)"
+sink_pid=""
 
 cleanup() {
   podman rm -f "$name" >/dev/null 2>&1 || true
+  if [[ -n "$sink_pid" ]]; then
+    kill "$sink_pid" >/dev/null 2>&1 || true
+    wait "$sink_pid" 2>/dev/null || true
+  fi
   podman unshare rm -rf "$state_dir"
+  rm -f "$output_file"
 }
 trap cleanup EXIT
 
@@ -22,16 +30,30 @@ podman run --rm --entrypoint /usr/bin/bash "$image" -c '
   test -x /usr/bin/python3
   test -x /usr/bin/xz
 
-  filters=(foomatic-rip gstoraster pdftops rastertoescpx rastertopclx)
-  for filter in "${filters[@]}"; do
-    path="/usr/lib/cups/filter/$filter"
-    test -x "$path"
-    dependencies="$(ldd "$path")"
+  executables=(
+    /usr/bin/ghostscript-printer-app
+    /usr/bin/gs
+    /usr/bin/python3
+    /usr/bin/xz
+    /usr/lib/cups/backend/dnssd
+    /usr/lib/cups/backend/snmp
+    /usr/lib/cups/backend/socket
+    /usr/lib/cups/backend/usb
+    /usr/lib/cups/filter/foomatic-rip
+    /usr/lib/cups/filter/gstoraster
+    /usr/lib/cups/filter/pdftops
+    /usr/lib/cups/filter/rastertoescpx
+    /usr/lib/cups/filter/rastertopclx
+  )
+  for executable in "${executables[@]}"; do
+    test -x "$executable"
+    dependencies="$(ldd "$executable")"
     [[ "$dependencies" != *"not found"* ]]
   done
 
-  application_dependencies="$(ldd /usr/bin/ghostscript-printer-app)"
-  [[ "$application_dependencies" != *"not found"* ]]
+  devices="$(gs -h 2>&1)"
+  [[ "$devices" == *"cups"* ]]
+  [[ "$devices" == *"pxlcolor"* ]]
 
   archives=(cups-filters-ppds foomatic-ppds manufacturer-ppds)
   for archive_name in "${archives[@]}"; do
@@ -45,9 +67,24 @@ podman run --rm --entrypoint /usr/bin/bash "$image" -c '
     ppd="$("$archive" cat "$uri")"
     [[ "$ppd" == *"*PPD-Adobe:"* ]]
   done
-'
 
+  /usr/share/ppd/foomatic-ppds cat \
+    foomatic-ppds:0/Generic-PCL_6_PCL_XL_Printer-pxlcolor.ppd \
+    > /tmp/foomatic.ppd
+  if ! PPD=/tmp/foomatic.ppd /usr/lib/cups/filter/foomatic-rip \
+    1 nonroot core-conversion 1 "" \
+    /usr/share/ghostscript-printer-app/testpage.ps \
+    > /tmp/foomatic-output.pcl 2>/tmp/foomatic.log; then
+    cat /tmp/foomatic.log >&2
+    exit 1
+  fi
+  test -s /tmp/foomatic-output.pcl
+'
 chmod 0777 "$state_dir"
+
+python3 tests/socket-sink.py "$sink_port" "$output_file" &
+sink_pid=$!
+
 podman run -d \
   --name "$name" \
   --network host \
@@ -55,16 +92,56 @@ podman run -d \
   -v "$state_dir:/var/lib/ghostscript-printer-app:Z" \
   "$image" >/dev/null
 
+ready=0
 for _ in $(seq 1 60); do
   http="$(curl --fail --silent --show-error "http://127.0.0.1:${port}/" 2>/dev/null || true)"
   https="$(curl --insecure --fail --silent --show-error "https://127.0.0.1:${port}/" 2>/dev/null || true)"
   if [[ "$http" == *'<title>Ghostscript Printer Application</title>'* && "$https" == *'<title>Ghostscript Printer Application</title>'* ]]; then
-    printf 'OK: core driver payload and HTTPS are available\n'
-    exit 0
+    ready=1
+    break
   fi
   sleep 1
 done
 
-podman logs "$name" >&2
-printf 'FAIL: HTTP/HTTPS readiness was not reached\n' >&2
-exit 1
+if [[ "$ready" -ne 1 ]]; then
+  podman logs "$name" >&2
+  printf 'FAIL: HTTP/HTTPS readiness was not reached\n' >&2
+  exit 1
+fi
+
+system_uri="ipp://127.0.0.1:${port}/ipp/system"
+printer_uri="ipp://127.0.0.1:${port}/ipp/print/core-test"
+podman exec "$name" ghostscript-printer-app \
+  -u "$system_uri" \
+  -d core-test \
+  -m generic--pcl-6-pcl-xl-printer--pxlcolor-recommended-en \
+  -v "cups:socket://127.0.0.1:${sink_port}" \
+  add
+podman exec "$name" ghostscript-printer-app \
+  -u "$printer_uri" \
+  -d core-test \
+  submit /usr/share/ghostscript-printer-app/testpage.ps >/dev/null
+
+for _ in $(seq 1 120); do
+  [[ -s "$output_file" ]] && break
+  sleep 0.5
+done
+if [[ ! -s "$output_file" ]]; then
+  podman exec "$name" ghostscript-printer-app -u "$printer_uri" jobs >&2 || true
+  podman exec "$name" cat /var/lib/ghostscript-printer-app/ghostscript-printer-app.log >&2 || true
+  printf 'FAIL: print job produced no socket output\n' >&2
+  exit 1
+fi
+
+wait "$sink_pid"
+sink_pid=""
+python3 -c 'import pathlib, sys; assert pathlib.Path(sys.argv[1]).read_bytes().startswith(b"\x1b%-12345X")' "$output_file"
+
+jobs=""
+for _ in $(seq 1 120); do
+  jobs="$(podman exec "$name" ghostscript-printer-app -u "$printer_uri" jobs)"
+  [[ "$jobs" == *"completed"* ]] && break
+  sleep 0.5
+done
+[[ "$jobs" == *"completed"* ]]
+printf 'OK: core driver payload, HTTPS, and print conversion are available\n'
