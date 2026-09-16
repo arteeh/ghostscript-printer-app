@@ -5,3 +5,5 @@
 .worktrees/
 .bst/
 .bst2/
+.bst-re.conf
+.build-out/
