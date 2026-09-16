@@ -33,4 +33,4 @@
 
 - [x] Run `just validate`, prior slice gates, `just verify-packaged-drivers`, workflow lint, shell syntax checks, and `git diff --check`.
 - [x] Review the full diff from `feat/fsdk-raster-drivers`.
-- [ ] Resolve issue 05, commit the completed plan, push `feat/fsdk-packaged-drivers`, and open a stacked PR based on `feat/fsdk-raster-drivers`.
+- [x] Resolve issue 05, commit the completed plan, push `feat/fsdk-packaged-drivers`, and open a stacked PR based on `feat/fsdk-raster-drivers`.
