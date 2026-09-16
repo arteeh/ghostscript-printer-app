@@ -7,9 +7,12 @@ if [[ -n "${PORT:-}" && ! "$PORT" =~ ^[0-9]+$ ]]; then
 fi
 
 state_dir=/var/lib/ghostscript-printer-app
-mkdir -p "$state_dir/ppd" "$state_dir/spool" "$state_dir/usb" "$state_dir/cups/ssl" /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
+mkdir -p "$state_dir/ppd" "$state_dir/spool" "$state_dir/usb" "$state_dir/cups/ssl" "$state_dir/pnm2ppa" /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
 if [[ ! -e "$state_dir/cups/snmp.conf" ]]; then
   cp /etc/cups/snmp.conf "$state_dir/cups/snmp.conf"
+fi
+if [[ ! -e "$state_dir/pnm2ppa/pnm2ppa.conf" ]]; then
+  cp /usr/share/ghostscript-printer-app/pnm2ppa.conf "$state_dir/pnm2ppa/pnm2ppa.conf"
 fi
 
 export BACKEND_DIR=/usr/lib/ghostscript-printer-app/backend

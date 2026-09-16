@@ -5,6 +5,10 @@ depends:
   - printer-app/application.bst
   - printer-app/core-payload.bst
   - printer-app/runtime-files.bst
+  - printer-app/c2050.bst
+  - printer-app/cjet.bst
+  - printer-app/min12xxw.bst
+  - printer-app/pnm2ppa.bst
   - freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
   - freedesktop-sdk.bst:components/avahi.bst
   - freedesktop-sdk.bst:components/ca-certificates.bst
