@@ -347,30 +347,6 @@ parts:
       - -usr/lib/*/libicuuc.*
       - -usr/lib/*/libicui18n.*
 
-  pdfio:
-    source: https://github.com/michaelrsweet/pdfio
-    source-type: git
-    source-tag: 'v1.6.4'
-    source-depth: 1
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/usr
-      - --enable-shared
-    build-packages:
-      - zlib1g-dev
-    stage-packages:
-      - zlib1g
-    stage:
-      - -usr/lib/libpdfio.a
-    prime:
-      - lib/*/lib*.so*
-      - usr/lib/lib*.so*
-      - usr/lib/*/lib*.so*
-      - -usr/include
-      - -usr/lib/pkgconfig
-      - -usr/share/man
-      - -usr/share/doc
-
   libcupsfilters:
     source: https://github.com/OpenPrinting/libcupsfilters
     source-type: git
@@ -387,7 +363,6 @@ parts:
       - --prefix=/usr
       - --disable-avahi
       - --disable-mutool
-      - --without-jpegxl
     build-packages:
       - gettext
       - autoconf
@@ -437,7 +412,7 @@ parts:
       - usr/lib/*/nss
       # Reported unused by snapcraft linter
       - -usr/lib/*/libssl3.*
-    after: [cups, qpdf, ghostscript, pdfio]
+    after: [cups, qpdf, ghostscript]
 
   libppd:
     source: https://github.com/OpenPrinting/libppd
