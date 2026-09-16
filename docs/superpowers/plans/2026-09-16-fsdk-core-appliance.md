@@ -374,7 +374,7 @@ git status --short
 
 Expected: all three commands succeed and `git status --short` prints nothing.
 
-- [ ] **Step 6: Push the feature branch to Project Bluefin**
+- [x] **Step 6: Push the feature branch to Project Bluefin**
 
 ```bash
 git push --set-upstream origin feat/fsdk-core-app
