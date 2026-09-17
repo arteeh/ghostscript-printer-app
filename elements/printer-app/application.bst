@@ -12,6 +12,8 @@ sources:
     path: ghostscript-printer-app.service
   - kind: local
     path: testpage.ps
+  - kind: local
+    path: VERSION
 
 build-depends:
   - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
@@ -23,6 +25,6 @@ depends:
 config:
   build-commands:
     - make clean
-    - make -j2 VERSION=10.07.1-1 LDFLAGS="$LDFLAGS -ljpeg"
+    - make -j2 VERSION="$(cat VERSION)" LDFLAGS="$LDFLAGS -ljpeg"
   install-commands:
-    - make DESTDIR="%{install-root}" VERSION=10.07.1-1 LDFLAGS="$LDFLAGS -ljpeg" unitdir= install
+    - make DESTDIR="%{install-root}" VERSION="$(cat VERSION)" LDFLAGS="$LDFLAGS -ljpeg" unitdir= install

@@ -1,6 +1,5 @@
 # BuildStream runs in the pinned freedesktop-sdk builder image.
 bst2_image := env("BST2_IMAGE", "registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d")
-sudo_cmd := if `podman info >/dev/null 2>&1 && echo 1 || echo 0` == "1" { "" } else { "sudo" }
 image_ref := "ghcr.io/projectbluefin/ghostscript-printer-app:build"
 
 default:
@@ -33,7 +32,7 @@ bst *ARGS:
     EOF
         RE_FLAG=(--config /src/.bst-re.conf)
     fi
-    {{ sudo_cmd }} podman run --rm \
+    podman run --rm \
         --privileged \
         --device /dev/fuse \
         --network=host \
@@ -46,6 +45,19 @@ bst *ARGS:
 validate:
     just bst show --deps all oci/ghostscript-printer-app.bst
 
+fetch:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for attempt in 1 2 3; do
+        if just bst source fetch --deps all oci/ghostscript-printer-app.bst; then
+            exit 0
+        fi
+        echo "source fetch failed (attempt ${attempt}/3)" >&2
+        if [[ "$attempt" -lt 3 ]]; then sleep 15; fi
+    done
+    exit 1
+
+
 build:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -57,9 +69,9 @@ export:
     set -euo pipefail
     rm -rf .build-out
     just bst artifact checkout oci/ghostscript-printer-app.bst --directory /src/.build-out
-    IMAGE_ID=$({{ sudo_cmd }} podman pull -q oci:.build-out)
+    IMAGE_ID=$(podman pull -q oci:.build-out)
     rm -rf .build-out
-    {{ sudo_cmd }} podman tag "$IMAGE_ID" "{{ image_ref }}"
+    podman tag "$IMAGE_ID" "{{ image_ref }}"
 
 verify-core:
     tests/core-appliance.sh
@@ -88,3 +100,43 @@ verify:
     just verify-packaged-drivers
     just verify-stateful-drivers
     tests/appliance-parity.sh
+
+
+sbom:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p "${HOME}/.cache/buildstream" "${HOME}/.cache/pip"
+    git_sha="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+    podman run --rm \
+        --privileged \
+        --device /dev/fuse \
+        --network=host \
+        -v "{{ justfile_directory() }}:/src:rw" \
+        -v "${HOME}/.cache/buildstream:/root/.cache/buildstream:rw" \
+        -v "${HOME}/.cache/pip:/root/.cache/pip:rw" \
+        -w /src \
+        -e GIT_SHA="$git_sha" \
+        "{{ bst2_image }}" \
+        bash -c '
+            installed=0
+            for attempt in 1 2 3; do
+                if pip install --quiet \
+                    git+https://gitlab.com/BuildStream/buildstream-sbom.git@0706fec3bedf6f73bd9d2fed32c2aed585feef8d; then
+                    installed=1
+                    break
+                fi
+                echo "buildstream-sbom install failed (attempt ${attempt}/3)" >&2
+                if [[ "$attempt" -lt 3 ]]; then sleep 5; fi
+            done
+            if [[ "$installed" != 1 ]]; then
+                echo "buildstream-sbom installation failed after 3 attempts" >&2
+                exit 1
+            fi
+            buildstream-sbom oci/ghostscript-printer-app.bst \
+                --spdx-name ghostscript-printer-app \
+                --spdx-namespace "https://github.com/projectbluefin/ghostscript-printer-app/sbom/${GIT_SHA}" \
+                --spdx-creator "Tool: buildstream-sbom" \
+                --spdx-creator "Organization: projectbluefin" \
+                --deps all \
+                --output /src/ghostscript-printer-app.spdx.json
+        '

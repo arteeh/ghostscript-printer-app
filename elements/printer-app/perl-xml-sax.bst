@@ -11,6 +11,7 @@ depends:
 
 sources:
   - kind: cpan
+    index: "cpan:"
     name: XML::SAX
     suffix: authors/id/G/GR/GRANTM/XML-SAX-1.02.tar.gz
     sha256sum: 4506c387043aa6a77b455f00f57409f3720aa7e553495ab2535263b4ed1ea12a

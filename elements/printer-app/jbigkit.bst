@@ -2,10 +2,9 @@ kind: manual
 description: Build the JBIG and JBIG85 shared libraries required by legacy drivers.
 
 sources:
-  - kind: git_repo
-    url: https://www.cl.cam.ac.uk/~mgk25/git/jbigkit
-    track: v2.1
-    ref: v2.1-0-g60bd8bd6579c12e5e3a24782bd49af2046a9738a
+  - kind: tar
+    url: debian:pool/main/j/jbigkit/jbigkit_2.1.orig.tar.gz
+    ref: de7106b6bfaf495d6865c7dd7ac6ca1381bd12e0d81405ea81e7f2167263d932
 
 build-depends:
   - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst

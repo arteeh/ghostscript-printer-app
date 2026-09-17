@@ -5,6 +5,9 @@ build-depends:
   - freedesktop-sdk.bst:bootstrap/coreutils.bst
   - freedesktop-sdk.bst:components/oci-builder.bst
   - freedesktop-sdk.bst:components/sed.bst
+  - filename: printer-app/version.bst
+    config:
+      location: /metadata
   - filename: printer-app/core-runtime.bst
     config:
       location: /layer
@@ -12,6 +15,7 @@ build-depends:
 config:
   commands:
     - |
+      version="$(cat /metadata/VERSION)"
       install -d /layer/etc
       printf '%s\n' \
         'root:x:0:0:root:/root:/usr/bin/bash' \
@@ -55,6 +59,7 @@ config:
               'org.opencontainers.image.description': 'Ghostscript Printer Application built from freedesktop-sdk'
               'org.opencontainers.image.source': 'https://github.com/projectbluefin/ghostscript-printer-app'
               'org.opencontainers.image.licenses': 'Apache-2.0'
-              'org.opencontainers.image.version': '10.07.1-1'
+              'org.opencontainers.image.version': '${version}'
               'io.projectbluefin.fsdk.version': '26.08rc.1'
+              'io.projectbluefin.fsdk.ref': 'e076d4978ee6945763486f6ebd755d189460e4e7'
       EOF
