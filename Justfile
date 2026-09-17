@@ -73,5 +73,8 @@ verify-raster-drivers:
 verify-packaged-drivers:
     tests/packaged-drivers.sh
 
+verify-stateful-drivers:
+    tests/stateful-drivers.sh
+
 verify-cups-patch-chain:
     tests/cups-patch-chain.sh
