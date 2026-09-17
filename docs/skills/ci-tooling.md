@@ -32,6 +32,7 @@ metadata:
 9. Give every external BuildStream source a project alias. Prefer an authoritative, checksummed release archive over a personal Git mirror when upstream Git is unreliable.
 10. Give pull-request CI a PR-scoped concurrency group with `cancel-in-progress: true`; stacked force-pushes must not leave duplicate multi-hour architecture jobs consuming the runner pool.
 11. Attribute App-authored commits with the bot account's numeric GitHub user ID in its noreply address. The GitHub App ID is a different identifier and does not link commits to the bot account.
+12. Treat `oras discover --format json` as a referrer-tree response and query its top-level `.referrers[]`; `.manifests[]` belongs to OCI index JSON, not ORAS discovery output.
 
 ## Common Rationalizations
 
@@ -55,6 +56,7 @@ metadata:
 - An unaliased external source URL or a source pinned only to a personal fork.
 - Pull-request CI without cancellation of superseded runs.
 - A bot noreply email built from the GitHub App ID instead of the bot account user ID.
+- An ORAS discovery assertion that reads `.manifests[]` instead of `.referrers[]`.
 
 ## Verification
 
@@ -64,6 +66,7 @@ metadata:
 - [ ] BuildStream resolves and fetches every repository-owned source without `[unaliased-url]` warnings.
 - [ ] Pushing a replacement commit cancels the superseded run for the same pull request.
 - [ ] App-authored commits use the verified bot account ID in `<user-id>+<app-slug>[bot]@users.noreply.github.com`.
+- [ ] SBOM discovery selects the expected digest and `application/vnd.spdx+json` type from `.referrers[]`.
 - [ ] A mismatched tag fails in the metadata job before any write-capable job.
 - [ ] The published index contains exactly amd64 and arm64 and has the required annotations.
 - [ ] `cosign verify` succeeds for the index and SBOM artifact.
