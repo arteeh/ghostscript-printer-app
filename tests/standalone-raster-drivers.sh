@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+podman_binary="$(command -v podman)"
+if ! "$podman_binary" info >/dev/null 2>&1; then
+  podman() { sudo "$podman_binary" "$@"; }
+fi
+
 image="ghcr.io/projectbluefin/ghostscript-printer-app:build"
 name="ghostscript-printer-app-raster-drivers"
 port="${PORT:-18020}"
