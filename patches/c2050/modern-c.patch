@@ -1,0 +1,84 @@
+diff --git a/c2050.c b/c2050.c
+--- a/c2050.c
++++ b/c2050.c
+@@ -11,7 +11,6 @@
+  */
+ 
+ #include <stdio.h>
+-#include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+ 
+@@ -56,14 +55,14 @@
+  */
+ void ClearBuffer(char *data, int bytes)
+ {
+-  register i;
++  register int i;
+   for(i = 0; i < bytes; data[i++] = 0);
+ } /* ClearBuffer */
+ 
+ /* 
+  * Initialize a sweep buffer
+  */
+-SweepBuffer_Init (struct tSweepBuffer *SweepBuffer, int bytesize)
++void SweepBuffer_Init (struct tSweepBuffer *SweepBuffer, int bytesize)
+ {
+   SweepBuffer->bytepos = 0;
+   SweepBuffer->bitpos = 0;
+@@ -123,9 +122,9 @@
+   register int redleft = 0; 
+   register int redright = 0; 
+   int bstart = 0;
+-  while ((buffer[redleft] == 0) && (redleft < *bytesize)) redleft++;
+-  while ((buffer[*bytesize - 1 - redright] == 0) && 
+-	 (redright < *bytesize)) redright++;
++  while ((redleft < *bytesize) && (buffer[redleft] == 0)) redleft++;
++  while ((redright < *bytesize) &&
++	 (buffer[*bytesize - 1 - redright] == 0)) redright++;
+   *breite -= redleft / bytespercolumn + redright / bytespercolumn;
+   *leftmargin += redleft / bytespercolumn;
+   bstart = redleft - (redleft % bytespercolumn);
+@@ -140,7 +139,7 @@
+ void PrintSweep(char *buffer, char *header, int bytesize, int width, int leftmargin, FILE *out)
+ {
+   int bstart;
+-  register i;
++  register int i;
+   /* Remove zeros and set a margin instead. Faster Printing. */
+   bstart = ReduceBytes(buffer, BYTES_PER_COLUMN, &leftmargin,
+ 		       &width, &bytesize);
+@@ -160,7 +159,7 @@
+ 
+   if (width > 0) { /* do not print empty sweeps */
+     for(i=0; i<BYTES_PER_HEADER; i++) putc(header[i], out);
+-    for(i=0; i<(bytesize);i++) putc(buffer[i+bstart], out);
++    for(i=0; i<(bytesize - BYTES_PER_HEADER);i++) putc(buffer[i+bstart], out);
+   }
+ } /* PrintSweep */	
+ 
+@@ -169,7 +168,7 @@
+  */
+ int LineSum(signed char line[], int length)
+ {
+-  register i = 0;
++  register int i = 0;
+   while (i < length)
+     if(line[i++] != 0) return 1;
+   return 0;
+@@ -293,7 +292,7 @@
+ 
+ 	  /* This extracts the nibbles and transforms them to the bits
+ 	     in the output stream. */
+-	  for(i=0; (i <= blkwidth); i++)
++	  for(i=0; (i < blkwidth); i++)
+ 	    {                              
+ 	      nibble = (line[i/2] << (4 * (i % 2))) & 0xF0;
+ 	      if (nibble & BLACK) {
+@@ -400,5 +399,6 @@
+ 
+   fclose(OutPutFile);
+   fclose(InputFile);
++  return 0;
+ }
+     

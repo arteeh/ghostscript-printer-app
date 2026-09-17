@@ -40,3 +40,24 @@ diff --git a/elements/components/cups.bst b/elements/components/cups.bst
  
  config:
    include:
+diff --git a/elements/components/_private/avahi-base.bst b/elements/components/_private/avahi-base.bst
+--- a/elements/components/_private/avahi-base.bst
++++ b/elements/components/_private/avahi-base.bst
+@@ -16,6 +16,8 @@ build-depends:
+ 
+ variables:
+   conf-local: >-
++    --with-avahi-user=nonroot
++    --with-avahi-group=nonroot
+     --with-distro=none
+     --disable-libevent
+     --disable-qt3
+diff --git a/elements/components/libcupsfilters.bst b/elements/components/libcupsfilters.bst
+--- a/elements/components/libcupsfilters.bst
++++ b/elements/components/libcupsfilters.bst
+@@ -34,3 +34,5 @@ sources:
+   exclude:
+   - '*rc*'
+   ref: 2.2.1-0-g2a00cf6aa4234e2e0ac91b9844ab8990d04c7089
++- kind: patch_queue
++  path: patches/ghostscript-printer-app/libcupsfilters
