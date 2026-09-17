@@ -260,7 +260,7 @@ jobs:
           gh attestation verify "oci://${IMAGE}@${DIGEST}" --repo "$GITHUB_REPOSITORY"
           oras discover --format json "${IMAGE}@${DIGEST}" |
             jq -e --arg digest "$SBOM_DIGEST" '.referrers[] | select(.digest == $digest and .artifactType == "application/vnd.spdx+json")'
-          raw="$(docker buildx imagetools inspect --raw "${IMAGE}@${DIGEST}")"
+          raw="$(skopeo inspect --raw "docker://${IMAGE}@${DIGEST}")"
           [[ "$(jq -r '[.manifests[].platform.architecture] | sort | join(" ")' <<< "$raw")" == "amd64 arm64" ]]
           jq -e \
             --arg version "$VERSION" \
