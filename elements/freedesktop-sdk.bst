@@ -8,6 +8,9 @@ sources:
   - kind: local
     path: patches/cups
     directory: patches/ghostscript-printer-app/cups
+  - kind: local
+    path: patches/libcupsfilters
+    directory: patches/ghostscript-printer-app/libcupsfilters
   - kind: patch_queue
     path: patches/freedesktop-sdk
 

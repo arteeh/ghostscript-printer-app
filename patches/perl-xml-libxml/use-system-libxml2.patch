@@ -1,0 +1,45 @@
+diff --git a/Makefile.PL b/Makefile.PL
+--- a/Makefile.PL
++++ b/Makefile.PL
+@@ -17,15 +17,12 @@
+ 
+ require 5.008001;
+ 
+-use Alien::Base::Wrapper qw( Alien::Libxml2 );
+ use ExtUtils::MakeMaker;
+ use Config;
+ 
+ my $SKIP_SAX_INSTALL = $ENV{SKIP_SAX_INSTALL};
+ 
+ my %ConfigReqs = (
+-  "Alien::Libxml2" => '0.14',
+-  "Alien::Base::Wrapper" => 0,
+   "Config" => 0,
+   "ExtUtils::MakeMaker" => 0,
+ );
+@@ -67,15 +64,17 @@
+   "warnings" => 0,
+ );
+ 
+-my %xsbuild_concat = (
+-  DEFINE  => '-DHAVE_UTF8',
+-  OBJECT  => '$(O_FILES)',
++my $cflags = `pkg-config --cflags libxml-2.0`;
++chomp $cflags;
++my $libs = `pkg-config --libs libxml-2.0`;
++chomp $libs;
++
++my %xsbuild = (
++  DEFINE => '-DHAVE_UTF8',
++  INC    => $cflags,
++  LIBS   => [$libs],
++  OBJECT => '$(O_FILES)',
+ );
+-my %xsbuild = Alien::Base::Wrapper->mm_args;  # Might contain a definition of DEFINE, must thus concatenate.
+-while (my ($k, $v) = each %xsbuild_concat) {
+-  my $base_val = $xsbuild{$k};
+-  $xsbuild{$k} = (defined($base_val) ? ($base_val . ' ' . $v) : $v);
+-}
+ 
+ # Strip bogus -L/lib entries that Alien::Base::Wrapper sometimes injects
+ # (the directory does not exist on macOS and the linker warns about it).
