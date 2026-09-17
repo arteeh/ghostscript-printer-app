@@ -4,7 +4,7 @@ description: Build the SpliX QPDL printer filters and PPD archive.
 sources:
   - kind: git_repo
     url: salsa:printing-team/splix.git
-    track: debian/2.0.1-1
+    track: debian/*
     ref: debian/2.0.1-1-0-g505f24d43fdb86eaa41a44486e7ef88226bb2c0c
 
 build-depends:

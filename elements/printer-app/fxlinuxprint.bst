@@ -4,7 +4,7 @@ description: Build the Fuji Xerox PDF printer CUPS filters and PPD archive.
 sources:
   - kind: git_repo
     url: salsa:printing-team/fxlinuxprint.git
-    track: debian/1.1.0+ds-4
+    track: debian/*
     ref: debian/1.1.0+ds-4-0-g3e640d5cf2881b01b6dab16e7d899290e61b0417
 
 build-depends:

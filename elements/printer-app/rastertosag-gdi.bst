@@ -4,7 +4,7 @@ description: Package the rastertosag-gdi Ricoh raster filter and PPDs.
 sources:
   - kind: git_repo
     url: salsa:printing-team/rastertosag-gdi.git
-    track: debian/0.1-8
+    track: debian/*
     ref: debian/0.1-8-0-g6f4028f36f015692a602077b7060438d0bf9f634
 
 build-depends:

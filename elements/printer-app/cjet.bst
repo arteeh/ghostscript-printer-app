@@ -4,7 +4,7 @@ description: Build the cjet Canon CaPSL raster converter.
 sources:
   - kind: git_repo
     url: salsa:printing-team/cjet.git
-    track: debian/0.8.9-11
+    track: debian/*
     ref: debian/0.8.9-11-0-g2de422f1b08cdf8d18a2e2ea8ae0b14751702fba
 
 build-depends:

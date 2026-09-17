@@ -4,7 +4,7 @@ description: Build the pyppd self-extracting PPD archive generator.
 sources:
   - kind: git_repo
     url: github:OpenPrinting/pyppd.git
-    track: release-1-1-0
+    track: release-*
     ref: release-1-1-0-0-g29ccf6cf85781315a696774e7458a2f1f61aac57
 
 build-depends:

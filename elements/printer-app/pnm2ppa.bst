@@ -4,7 +4,7 @@ description: Build the pnm2ppa HP PPA raster converter.
 sources:
   - kind: git_repo
     url: salsa:printing-team/pnm2ppa.git
-    track: debian/1.13-14
+    track: debian/*
     ref: debian/1.13-14-0-gca990cac53fb605d827f707e5f2d0c490639705c
 
 build-depends:

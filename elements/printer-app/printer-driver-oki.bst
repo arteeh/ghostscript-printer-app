@@ -4,7 +4,7 @@ description: Package the OKI shell filters and PPD archive.
 sources:
   - kind: git_repo
     url: github:rbalint/printer-driver-oki.git
-    track: 1.0.2
+    track: 1.*
     ref: 1.0.2-0-g9f48d5a6c5938126a5aa91a902668aa877c3c22b
 
 build-depends:
