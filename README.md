@@ -25,7 +25,7 @@ Your contributions are welcome. Please post [issues and pull
 requests](https://github.com/OpenPrinting/ghostscript-printer-app).
 
 
-### Contained Printer Drivers (in the Snap)
+### Contained Printer Drivers
 
 - **Ghostscript built-in**:
   ```
@@ -59,8 +59,8 @@ requests](https://github.com/OpenPrinting/ghostscript-printer-app).
 
 - **`pnm2ppa`**: Driver for some older HP printers with proprietary
   protocol, probably the only HP printers **NOT supported by
-  HPLIP**. even not with HP's proprietary plugin. The configuration
-  file in the Snap is user-editable, see below.
+  HPLIP**. even not with HP's proprietary plugin. Its configuration file is
+  user-editable in persistent application state, see below.
 
 - **`pxljr`**: For HP Color LaserJet 3500/3550/3600, should give
   better output quality than HPLIP.
@@ -71,8 +71,8 @@ requests](https://github.com/OpenPrinting/ghostscript-printer-app).
   facility for HP is not included in this Printer Application, use the
   [HPLIP Printer Application](https://snapcraft.io/hplip-printer-app)
   (download proprietary plugin in-app, via web interface) for these
-  printers, the firmware is proprietary anyway. In the Snap the user
-  can add color profiles, see below.
+  printers, the firmware is proprietary anyway. Users can add color profiles
+  in persistent application state, see below.
 
 - **`SpliX`**: Driver for laser printers with proprietary languages,
   from Dell, Lexmark, Samsung, Toshiba, Xerox
@@ -93,8 +93,8 @@ requests](https://github.com/OpenPrinting/ghostscript-printer-app).
 - **`ptouch`**: Driver for Brother's P-Touch label printers
 
 - **`c2050`, `cjet`, `min12xxw`, `m2300w`**: Drivers for older
-  Lexmark, Canon, and Minolta printers. For `m2300w` in the Snap the
-  user can add color profiles, see below.
+  Lexmark, Canon, and Minolta printers. Users can add `m2300w` color profiles
+  in persistent application state, see below.
 
 - **`CUPS`, `cups-filters`**: Included drivers for PCL, dot-matrix
   (Oki, Epson), label printers (Dymo, Intellitech, Zebra), and some
@@ -340,177 +340,72 @@ If you mess up any configuration file under
 `/var/snap/ghostscript-printer-app/common/`, simply delete it (or move
 it away) and restart the Snap to get it restored.
 
-## THE ROCK (OCI CONTAINER IMAGE)
+## OCI CONTAINER IMAGE
 
-### Install from Docker Hub
-#### Prerequisites
+The OCI appliance is published only to the GitHub Container Registry under
+immutable application-version tags. The version is recorded in [`VERSION`](VERSION);
+there is no `latest`, `edge`, or `stable` OCI tag.
 
-1. **Docker Installed**: Ensure Docker is installed on your system. You can download it from the [official Docker website](https://www.docker.com/get-started).
-```sh
-  sudo snap install docker
-```
+### Run the published image
 
-#### Step-by-Step Guide
-
-You can pull the `ghostscript-printer-app` Docker image from either the GitHub Container Registry or Docker Hub.
-
-**From GitHub Container Registry** <br>
-To pull the image from the GitHub Container Registry, run the following command:
-```sh
-  sudo docker pull ghcr.io/openprinting/ghostscript-printer-app:latest
-```
-
-Create a Docker volume:
-```sh
-  sudo docker volume create ghostscript-printer-app
-```
-
-To run the container after pulling the image from the GitHub Container Registry, use:
-```sh
-  sudo docker run -d \
-      --name ghostscript-printer-app \
-      --network host \
-      -e PORT=<port> \
-      -v ghostscript-printer-app:/var/lib/ghostscript-printer-app \
-      -v /dev/bus/usb:/dev/bus/usb:ro \
-      --device-cgroup-rule='c 189:* rmw' \
-      ghcr.io/openprinting/ghostscript-printer-app:latest
-```
-
-**From Docker Hub** <br>
-Alternatively, you can pull the image from Docker Hub, by running:
-```sh
-  sudo docker pull openprinting/ghostscript-printer-app
-```
-
-Create a Docker volume:
-```sh
-  sudo docker volume create ghostscript-printer-app
-```
-
-To run the container after pulling the image from Docker Hub, use:
-```sh
-  sudo docker run -d \
-      --name ghostscript-printer-app \
-      --network host \
-      -e PORT=<port> \
-      -v ghostscript-printer-app:/var/lib/ghostscript-printer-app \
-      -v /dev/bus/usb:/dev/bus/usb:ro \
-      --device-cgroup-rule='c 189:* rmw' \
-      openprinting/ghostscript-printer-app:latest
-```
-
-- `PORT` is an optional environment variable used to start the printer-app on a specified port. If not provided, it will start on the default port 8000 or, if port 8000 is busy, on 8001 and so on.
-- **The container must be started in `--network host` mode** to allow the Printer-Application instance inside the container to access and discover printers available in the local network where the host system is in.
-- Alternatively using the internal network of the Docker instance (`-p <port>:8000` instead of `--network host -e PORT=<port>`) only gives access to local printers running on the host system itself.
-- `-v ghostscript-printer-app:/var/lib/ghostscript-printer-app` maps a volume for persistent storage.
-- The following volume and device settings are crucial for USB printer access:
-  - `-v /dev/bus/usb:/dev/bus/usb:ro` mounts the host's USB device directory read-only inside the container for USB printer access.
-  - `--device-cgroup-rule='c 189:* rmw'` allows the container to read, write, and mknod to USB devices.
-
-### Setting Up and Running ghostscript-printer-app locally
-
-#### Prerequisites
-
-**Docker Installed**: Ensure Docker is installed on your system. You can download it from the [official Docker website](https://www.docker.com/get-started) or from the Snap Store:
-```sh
-  sudo snap install docker
-```
-
-**Rockcraft**: Rockcraft should be installed. You can install Rockcraft using the following command:
-```sh
-  sudo snap install rockcraft --classic
-```
-
-**Skopeo**: Skopeo should be installed to compile `*.rock` files into Docker images. It comes bundled with Rockcraft, so no separate installation is required.
-
-#### Step-by-Step Guide
-
-**Build ghostscript-printer-app rock**
-
-The first step is to build the Rock from the `rockcraft.yaml`. This image will contain all the configurations and dependencies required to run ghostscript-printer-app.
-
-Open your terminal and navigate to the directory containing your `rockcraft.yaml`, then run the following command:
+Install Podman with a working rootless user namespace, then select an explicit release:
 
 ```sh
-  rockcraft pack -v
+version=10.07.1-1
+image="ghcr.io/projectbluefin/ghostscript-printer-app:${version}"
+podman pull "$image"
+podman volume create ghostscript-printer-app
+podman run -d \
+  --name ghostscript-printer-app \
+  --network host \
+  -e PORT=8000 \
+  -v ghostscript-printer-app:/var/lib/ghostscript-printer-app:Z,U \
+  "$image"
 ```
 
-**Compile to Docker Image**
+Open `http://localhost:8000/` and use the web interface to add a printer.
+`PORT` is optional; without it, the application selects port 8000 or the next
+available port. Host networking is required for local-network printer discovery.
+The named volume preserves Printer Application state and user-edited driver
+configuration across upgrades.
 
-Once the rock is built, you need to compile docker image from it.
+For USB printers, add these options to `podman run`:
 
 ```sh
-  sudo rockcraft.skopeo --insecure-policy copy oci-archive:<rock_image> docker-daemon:ghostscript-printer-app:latest
+--device /dev/bus/usb --group-add keep-groups
 ```
 
-Create a Docker volume:
-```sh
-  sudo docker volume create ghostscript-printer-app
-```
+The host user must already have permission to access the printer device. Do not
+work around host permissions by running the appliance as root.
 
-**Run the ghostscript-printer-app Docker Container**
+### Build and verify locally
 
-```sh
-  sudo docker run -d \
-      --name ghostscript-printer-app \
-      --network host \
-      -e PORT=<port> \
-      -v ghostscript-printer-app:/var/lib/ghostscript-printer-app \
-      -v /dev/bus/usb:/dev/bus/usb:ro \
-      --device-cgroup-rule='c 189:* rmw' \
-      ghostscript-printer-app:latest
-```
-- `PORT` is an optional environment variable used to start the printer-app on a specified port. If not provided, it will start on the default port 8000 or, if port 8000 is busy, on 8001 and so on.
-- **The container must be started in `--network host` mode** to allow the Printer-Application instance inside the container to access and discover printers available in the local network where the host system is in.
-- Alternatively using the internal network of the Docker instance (`-p <port>:8000` instead of `--network host -e PORT=<port>`) only gives access to local printers running on the host system itself.
-- `-v ghostscript-printer-app:/var/lib/ghostscript-printer-app` maps a volume for persistent storage.
-- The following volume and device settings are crucial for USB printer access:
-  - `-v /dev/bus/usb:/dev/bus/usb:ro` mounts the host's USB device directory read-only inside the container for USB printer access.
-  - `--device-cgroup-rule='c 189:* rmw'` allows the container to read, write, and mknod to USB devices.
-
-#### Setting up
-
-Enter the web interface
+The OCI image is built with BuildStream inside the pinned builder container.
+Install Podman and `just`, then run:
 
 ```sh
-http://localhost:<port>/
+just build
+just verify
 ```
 
-Use the web interface to add a printer. Supply a name, select the
-discovered printer, then select make and model. Also set the installed
-accessories, loaded media and the option defaults. If the printer is a
-PostScript printer, accessory configuration and option defaults can
-also often get polled from the printer.
+`just build` exports and tags the local image as
+`ghcr.io/projectbluefin/ghostscript-printer-app:build`. `just verify` is the
+authoritative appliance gate: it checks the BuildStream graph and patch chain,
+starts the real image, exercises every driver slice, verifies lifecycle and
+persistence behavior, audits the advertised payload and complete ELF closure,
+and enforces the uncompressed size ceiling.
 
-<!-- Begin Included Components -->
-## Included Components
-  - pappl v1.4.10
-  - qpdf v11.10.1
-  - ghostscript ghostpdl-10.06.0rc1_test001
-  - cups v2.4.16
-  - libcupsfilters 2.1.1
-  - libppd 2.1.1
-  - cups-filters 2.0.1
-  - pyppd release-1-1-0
-  - foomatic-db 20240504
-  - hplip debian/3.22.10+dfsg0-8
-  - c2050 debian/0.3-7
-  - cjet debian/0.8.9-11
-  - min12xxw debian/0.0.9-11
-  - pnm2ppa debian/1.13-14
-  - c2esp debian/27-11
-  - dymo-cups-drivers debian/1.4.0-12
-  - foo2zjs debian/20200505dfsg0-4
-  - fxlinuxprint debian/1.1.0+ds-4
-  - m2300w debian/0.51-15
-  - printer-driver-oki 1.0.2
-  - pxljr debian/1.4+repack0-6
-  - rastertosag-gdi debian/0.1-8
-  - splix debian/2.0.1-1
-  - brlaser v6
-  - ptouch-driver debian/1.7-1
-<!-- End Included Components -->
+For real hardware, follow the separate
+[USB and network printer validation procedure](docs/oci-physical-validation.md).
+Synthetic CI results are not physical-printer evidence.
+
+### Releases
+
+Maintainers publish by pushing a Git tag exactly matching `v$(cat VERSION)`.
+The tag workflow builds and verifies native amd64 and arm64 images, publishes
+the matching immutable GHCR multi-architecture index, and verifies its SPDX
+SBOM, keyless signatures, GitHub provenance, and OCI metadata. It never
+publishes a mutable channel alias.
 
 ## BUILDING WITHOUT PACKAGING OR INSTALLATION
 

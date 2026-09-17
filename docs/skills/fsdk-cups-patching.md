@@ -23,13 +23,13 @@ metadata:
 
 ## Core Process
 
-1. Treat `rockcraft.yaml`, `snap/snapcraft.yaml`, and root `patches/` as the existing behavior contract.
+1. Treat `snap/snapcraft.yaml`, the FSDK elements, and root `patches/` as the current behavior contract; consult Git history only when auditing the retired OCI implementation.
 2. Keep one CUPS artifact owner. The FSDK junction must continue to own CUPS so its reverse dependencies build against the same libraries.
 3. Keep CUPS-only source patches under `patches/cups/`. The `patch_queue` plugin applies every file in its directory, so unrelated patches must stay elsewhere.
 4. Stage `patches/cups/` into the FSDK junction with a `local` source. Apply `patches/freedesktop-sdk/` at the junction project level; that project patch injects the nested CUPS source `patch_queue` and adjusts FSDK's CUPS configuration.
 5. Do not use `config.overrides` for small CUPS patches or feature switches. BuildStream documents overrides as complete downstream ownership that stops inheriting upstream element updates.
 6. Do not stage a second CUPS implementation. Duplicate `libcups.so*` ownership creates an artifact overlap and can compile reverse dependencies against a different library than the application receives.
-7. When moving a shared patch, update both Snap and Rock references while Rock remains. Apply patches from the source root when their paths start with `a/backend/` and use `-p1`.
+7. Shared CUPS patches remain under `patches/cups/` for both Snap and FSDK. Apply patches from the source root when their paths start with `a/backend/` and use `-p1`.
 8. Cross-junction source checkouts nest under `<junction>/<element-path>/`; the CUPS probe therefore checks `freedesktop-sdk/components-_private-cups-base/`, not the checkout root.
 9. Match FSDK's multiarch install layout for every repository-built library. Define `gcc-triplet`, `lib`, and `libdir` in the root project and pass `--libdir=%{libdir}` to Autotools; FSDK's `pkg-config` searches `/usr/lib/<gcc-triplet>/pkgconfig`, not `/usr/lib/pkgconfig`.
 10. Do not `chown` high numeric runtime IDs inside the BuildStream sandbox; user-namespace mappings can reject them with `EINVAL`. After composition, reapply writable directory modes in the final OCI layer. Remove inherited `/run` service directories and let the numeric runtime user recreate them so ownership checks observe the actual user.
@@ -74,7 +74,7 @@ metadata:
 - [ ] The graph contains exactly one FSDK private CUPS base.
 - [ ] The staged CUPS source contains the DNS-SD and `USB_QUIRK_DIR` changes.
 - [ ] The CUPS base still exposes `cups-libs` and `cups-license`.
-- [ ] Both current Snap and Rock CUPS source versions accept the canonical patches while both packaging paths exist.
+- [ ] The Snap and FSDK CUPS source versions both accept the canonical patches.
 - [ ] Repository-built libraries install their `.pc` files in FSDK's multiarch pkg-config directory and are discoverable from a dependent element's build sandbox.
 - [ ] The exported image runs with the numeric UID/GID, creates runtime directories, and reaches application readiness.
 - [ ] TERM yields signal exit status `143`, not Podman's SIGKILL timeout status `137`; killing a required child makes the container exit nonzero.

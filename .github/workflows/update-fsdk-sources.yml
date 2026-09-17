@@ -15,7 +15,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,7 +30,7 @@ jobs:
       - name: Check for updates
         id: changes
         run: |
-          if git diff --quiet -- VERSION elements; then
+          if git diff --quiet -- VERSION README.md elements; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -38,6 +38,9 @@ jobs:
       - name: Verify CUPS patch compatibility
         if: steps.changes.outputs.changed == 'true'
         run: just verify-cups-patch-chain
+      - name: Fetch updated sources with retries
+        if: steps.changes.outputs.changed == 'true'
+        run: just fetch
       - name: Verify updated appliance
         if: steps.changes.outputs.changed == 'true'
         run: just verify
@@ -57,9 +60,9 @@ jobs:
           set -euo pipefail
           branch=auto/update-fsdk-sources
           git config user.name 'mergeraptor[bot]'
-          git config user.email '${{ secrets.MERGERAPTOR_APP_ID }}+mergeraptor[bot]@users.noreply.github.com'
+          git config user.email '267480593+mergeraptor[bot]@users.noreply.github.com'
           git switch --create "$branch"
-          git add VERSION elements
+          git add VERSION README.md elements
           git commit -m 'chore(deps): update FSDK appliance sources'
           basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           echo "::add-mask::$basic"

@@ -17,6 +17,7 @@ IJS_ELEMENT = ELEMENTS / "printer-app" / "ijs.bst"
 OCI_ELEMENT = ELEMENTS / "oci" / "ghostscript-printer-app.bst"
 PLUGIN_ELEMENT = ELEMENTS / "plugins" / "buildstream-plugins-community.bst"
 VERSION_FILE = ROOT / "VERSION"
+README_FILE = ROOT / "README.md"
 SOURCE_KIND = re.compile(r"^\s*-\s+kind:\s+(git_repo|cpan|tar)$", re.MULTILINE)
 FSDK_REF = re.compile(r"^\s*ref: freedesktop-sdk-(.+?)-0-g([0-9a-f]{40})$", re.MULTILINE)
 GHOSTSCRIPT_REF = re.compile(r"^\s*ref: (ghostpdl-(.+?)-\d+-g[0-9a-f]{40})$", re.MULTILINE)
@@ -94,9 +95,11 @@ def sync_fsdk_metadata() -> None:
     match = re.fullmatch(r".+-([0-9]+)", current_version)
     if match is None:
         raise RuntimeError("VERSION must end in a numeric packaging revision")
-    VERSION_FILE.write_text(f"{ghostscript_version}-{match.group(1)}\n")
+    application_version = f"{ghostscript_version}-{match.group(1)}"
+    VERSION_FILE.write_text(f"{application_version}\n")
     replace_one(IJS_ELEMENT, r"^\s*track: ghostpdl-.*$", f"    track: ghostpdl-{ghostscript_version}")
     replace_one(IJS_ELEMENT, r"^\s*ref: (?:ghostpdl-)?[^\s]+$", f"    ref: {ghostscript_ref}")
+    replace_one(README_FILE, r"^version=[^\s]+$", f"version={application_version}")
     replace_one(
         OCI_ELEMENT,
         r"^(\s*'io\.projectbluefin\.fsdk\.version': )'[^']+'$",
@@ -145,7 +148,7 @@ def main() -> None:
     parser.add_argument("--update", action="store_true", help="track sources and synchronize metadata")
     args = parser.parse_args()
     if args.update:
-        paths = [VERSION_FILE, *ELEMENTS.rglob("*.bst")]
+        paths = [VERSION_FILE, README_FILE, *ELEMENTS.rglob("*.bst")]
         original = {path: path.read_bytes() for path in paths}
         try:
             refresh_plugin_tarball()

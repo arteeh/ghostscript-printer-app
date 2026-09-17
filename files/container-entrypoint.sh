@@ -17,8 +17,8 @@ fi
 if [[ ! -e "$state_dir/hplip/hplip.conf" ]]; then
   cp /usr/share/ghostscript-printer-app/defaults/hplip/hplip.conf "$state_dir/hplip/hplip.conf"
 fi
-cp -a --no-clobber /usr/share/ghostscript-printer-app/defaults/foo2zjs/. "$state_dir/foo2zjs/"
-cp -a --no-clobber /usr/share/ghostscript-printer-app/defaults/m2300w/. "$state_dir/m2300w/"
+cp -a --update=none /usr/share/ghostscript-printer-app/defaults/foo2zjs/. "$state_dir/foo2zjs/"
+cp -a --update=none /usr/share/ghostscript-printer-app/defaults/m2300w/. "$state_dir/m2300w/"
 
 export BACKEND_DIR=/usr/lib/ghostscript-printer-app/backend
 export CUPS_SERVERBIN=/usr/lib/ghostscript-printer-app

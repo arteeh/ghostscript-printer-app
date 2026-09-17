@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-podman_binary="$(command -v podman)"
-if ! "$podman_binary" info >/dev/null 2>&1; then
-  podman() { sudo "$podman_binary" "$@"; }
-fi
 
 image="ghcr.io/projectbluefin/ghostscript-printer-app:build"
+
+expect_equal() {
+  local label="$1" actual="$2" expected="$3"
+  if [[ "$actual" != "$expected" ]]; then
+    printf 'FAIL: %s: got %q, expected %q\n' "$label" "$actual" "$expected" >&2
+    exit 1
+  fi
+}
 size_limit_bytes="${IMAGE_SIZE_LIMIT_BYTES:-524288000}"
 
 just build
@@ -51,17 +55,17 @@ case "$(uname -m)" in
   *) printf 'FAIL: unsupported verification architecture %s\n' "$(uname -m)" >&2; exit 1 ;;
 esac
 
-test "$(podman image inspect "$image" --format '{{.Architecture}}')" = "$expected_arch"
-test "$(podman image inspect "$image" --format '{{.Config.User}}')" = 65532:65532
-test "$(podman image inspect "$image" --format '{{json .Config.Entrypoint}}')" = '["/usr/bin/catatonit","--","/usr/bin/bash","/usr/libexec/ghostscript-printer-app/container-entrypoint"]'
-test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.title"}}')" = ghostscript-printer-app
-test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = https://github.com/projectbluefin/ghostscript-printer-app
-test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}')" = Apache-2.0
+expect_equal architecture "$(podman image inspect "$image" --format '{{.Architecture}}')" "$expected_arch"
+expect_equal user "$(podman image inspect "$image" --format '{{.Config.User}}')" 65532:65532
+expect_equal entrypoint "$(podman image inspect "$image" --format '{{json .Config.Entrypoint}}')" '["/usr/bin/catatonit","--","/usr/bin/bash","/usr/libexec/ghostscript-printer-app/container-entrypoint"]'
+expect_equal title "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.title"}}')" ghostscript-printer-app
+expect_equal source "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" https://github.com/projectbluefin/ghostscript-printer-app
+expect_equal license "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}')" Apache-2.0
 application_version="$(podman run --rm --entrypoint /usr/bin/ghostscript-printer-app "$image" --version)"
-test "$application_version" = "$(< VERSION)"
-test "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "$application_version"
-test "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.version"}}')" = "$fsdk_version"
-test "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.ref"}}')" = "$fsdk_ref"
+expect_equal binary-version "$application_version" "$(< VERSION)"
+expect_equal image-version "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" "$application_version"
+expect_equal fsdk-version "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.version"}}')" "$fsdk_version"
+expect_equal fsdk-ref "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.ref"}}')" "$fsdk_ref"
 
 podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
   -e ADVERTISED_GHOSTSCRIPT_DRIVERS="$advertised_ghostscript_drivers" \
@@ -70,7 +74,7 @@ podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
 
   backends=(dnssd ipp ipps lpd snmp socket usb)
   for backend in "${backends[@]}"; do
-    test -x "/usr/lib/cups/backend/$backend"
+    test -x "/usr/lib/cups/backend/$backend" || { printf "FAIL: missing CUPS backend %s\n" "$backend" >&2; exit 1; }
   done
 
   filters=(
@@ -82,7 +86,7 @@ podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
     rastertoptch rastertoqpdl rastertosag-gdi
   )
   for filter in "${filters[@]}"; do
-    test -x "/usr/lib/cups/filter/$filter"
+    test -x "/usr/lib/cups/filter/$filter" || { printf "FAIL: missing CUPS filter %s\n" "$filter" >&2; exit 1; }
   done
 
   commands=(
@@ -90,7 +94,7 @@ podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
     min12xxw pnm2ppa psnup ijs_pxljr
   )
   for command in "${commands[@]}"; do
-    command -v "$command" >/dev/null
+    command -v "$command" >/dev/null || { printf "FAIL: missing driver command %s\n" "$command" >&2; exit 1; }
   done
 
   ppd_providers=(
@@ -100,7 +104,7 @@ podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
     ptouch-ppds pxljr-ppds rastertosag-gdi-ppds splix-ppds
   )
   for provider in "${ppd_providers[@]}"; do
-    test -e "/usr/share/ppd/$provider"
+    test -e "/usr/share/ppd/$provider" || { printf "FAIL: missing PPD provider %s\n" "$provider" >&2; exit 1; }
   done
 
   provider_contains() {
@@ -134,13 +138,18 @@ podman run --rm --user 0:0 --entrypoint /usr/bin/bash \
   provider_contains /usr/share/ppd/splix-ppds Samsung
   provider_contains /usr/share/cups/drv/sample.drv Intellitech
   provider_contains /usr/share/cups/drv/sample.drv Zebra
+  provider_contains /usr/share/ppd/foomatic-ppds Epson
+  provider_contains /usr/share/ppd/foomatic-ppds "HP DesignJet"
 
   devices=" $(gs -h 2>&1 | tr "\n" " ") "
   foomatic_entries="$(/usr/share/ppd/foomatic-ppds list)"
   read -r -a ghostscript_drivers <<< "$ADVERTISED_GHOSTSCRIPT_DRIVERS"
-  ((${#ghostscript_drivers[@]} > 0))
+  ((${#ghostscript_drivers[@]} >= 90)) || {
+    printf "FAIL: README exposed only %s Ghostscript drivers; expected at least 90\n" "${#ghostscript_drivers[@]}" >&2
+    exit 1
+  }
   for driver in "${ghostscript_drivers[@]}"; do
-    if [[ "$devices" != *" $driver "* && "$foomatic_entries" != *"-$driver.ppd\""* ]]; then
+    if [[ "$devices" != *" $driver "* && "$foomatic_entries" != *"Foomatic/$driver "* && "$foomatic_entries" != *"Foomatic/$driver\""* ]]; then
       printf "FAIL: advertised Ghostscript driver %s has no device or PPD entry\n" "$driver" >&2
       exit 1
     fi
@@ -177,7 +186,7 @@ for root, dirs, files in os.walk("/"):
             forbidden.append(os.path.join(root, directory))
     for name in files:
         path = os.path.join(root, name)
-        if name.endswith((".a", ".la")):
+        if name.endswith((".a", ".la", ".test")):
             forbidden.append(path)
         if os.path.islink(path):
             continue

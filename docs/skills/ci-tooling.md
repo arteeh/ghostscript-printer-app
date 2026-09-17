@@ -31,6 +31,7 @@ metadata:
 8. Keep the Snap update/build lanes independent from FSDK OCI publication.
 9. Give every external BuildStream source a project alias. Prefer an authoritative, checksummed release archive over a personal Git mirror when upstream Git is unreliable.
 10. Give pull-request CI a PR-scoped concurrency group with `cancel-in-progress: true`; stacked force-pushes must not leave duplicate multi-hour architecture jobs consuming the runner pool.
+11. Attribute App-authored commits with the bot account's numeric GitHub user ID in its noreply address. The GitHub App ID is a different identifier and does not link commits to the bot account.
 
 ## Common Rationalizations
 
@@ -53,6 +54,7 @@ metadata:
 - An SBOM generated for only the runner's architecture.
 - An unaliased external source URL or a source pinned only to a personal fork.
 - Pull-request CI without cancellation of superseded runs.
+- A bot noreply email built from the GitHub App ID instead of the bot account user ID.
 
 ## Verification
 
@@ -61,6 +63,7 @@ metadata:
 - [ ] Pull-request CI completes on native amd64 and arm64 runners without registry credentials.
 - [ ] BuildStream resolves and fetches every repository-owned source without `[unaliased-url]` warnings.
 - [ ] Pushing a replacement commit cancels the superseded run for the same pull request.
+- [ ] App-authored commits use the verified bot account ID in `<user-id>+<app-slug>[bot]@users.noreply.github.com`.
 - [ ] A mismatched tag fails in the metadata job before any write-capable job.
 - [ ] The published index contains exactly amd64 and arm64 and has the required annotations.
 - [ ] `cosign verify` succeeds for the index and SBOM artifact.
