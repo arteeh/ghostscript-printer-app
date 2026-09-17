@@ -1,6 +1,6 @@
 ---
 name: fsdk-cups-patching
-description: Use when changing the freedesktop-sdk junction, CUPS build configuration, CUPS backends, or CUPS source patches for the OCI appliance.
+description: Use when changing the freedesktop-sdk junction, CUPS or cups-filters build configuration, Ghostscript compression ownership, CUPS backends, filters, or print-stack source patches for the OCI appliance.
 metadata:
   context7-sources:
     - /apache/buildstream
@@ -13,6 +13,7 @@ metadata:
 - Changing the pinned freedesktop-sdk junction.
 - Changing CUPS TLS configuration, backends, filters, or source patches.
 - Diagnosing CUPS graph or source-staging failures in the OCI build.
+- Changing FSDK-owned cups-filters or Ghostscript behavior required by a legacy driver.
 
 ## When NOT to Use
 
@@ -33,6 +34,10 @@ metadata:
 9. Match FSDK's multiarch install layout for every repository-built library. Define `gcc-triplet`, `lib`, and `libdir` in the root project and pass `--libdir=%{libdir}` to Autotools; FSDK's `pkg-config` searches `/usr/lib/<gcc-triplet>/pkgconfig`, not `/usr/lib/pkgconfig`.
 10. Do not `chown` high numeric runtime IDs inside the BuildStream sandbox; user-namespace mappings can reject them with `EINVAL`. After composition, reapply writable directory modes in the final OCI layer. Remove inherited `/run` service directories and let the numeric runtime user recreate them so ownership checks observe the actual user.
 11. Avahi's `--no-drop-root` still resolves its compiled `AVAHI_USER`/`AVAHI_GROUP` and requires its runtime directory to have those numeric IDs. Configure FSDK's Avahi build with `--with-avahi-user=nonroot --with-avahi-group=nonroot`; never create a second passwd/group name with UID/GID `65532`. Remove D-Bus's `<user>` directive so it does not attempt a second privilege drop, and patch Avahi policy at `/etc/dbus-1/system.d/avahi-dbus.conf`.
+12. Install repository-built CUPS filters into `/usr/lib/cups/filter`. The appliance exposes `/usr/lib/ghostscript-printer-app` as a symlink to `/usr/lib/cups`; creating a real `/usr/lib/ghostscript-printer-app/filter` directory in another artifact conflicts with that symlink during composition.
+13. Stage component-specific source patches in separate junction directories. `patches/cups-filters/` is injected into FSDK's existing `components/cups-filters.bst`; never mix it with CUPS or libcupsfilters patches.
+14. Keep Ghostscript on its bundled zlib. FSDK's zlib-ng compatibility library corrupts compiled Ghostscript ROMFS reads when a full-size IJS page lazily loads an ICC profile; the failure appears as `free(): invalid size` from `s_block_read_process`. A default Letter pxljr conversion is the regression probe.
+15. Treat filter executables by format: use `ldd` only for ELF binaries, and resolve script shebangs plus every invoked command separately. Generated pyppd archives use `#!/usr/bin/env python3`, so each owning element declares the Python runtime even when another aggregate currently supplies it.
 
 ## Common Rationalizations
 
@@ -57,6 +62,10 @@ metadata:
 - Pre-creating Avahi's runtime directory as root; Avahi verifies it belongs to its compiled service UID even with `--no-drop-root`.
 - Giving `avahi` and `nonroot` the same UID/GID; numeric-to-name lookup becomes ambiguous and can hide a broken OCI identity.
 - Editing `/usr/share/dbus-1/system.d/avahi-dbus.conf`; the FSDK runtime installs that policy under `/etc/dbus-1/system.d/`.
+- Installing a driver artifact beneath `/usr/lib/ghostscript-printer-app/filter`; the canonical artifact path is `/usr/lib/cups/filter`, reached at runtime through the application symlink.
+- Running `ldd` on shell or Python filters; `not a dynamic executable` is not an ELF closure result.
+- Letting aggregate composition mask an undeclared pyppd Python runtime or shell-filter command dependency.
+- Building Ghostscript against FSDK's zlib-ng compatibility library when the appliance ships an IJS driver.
 
 ## Verification
 

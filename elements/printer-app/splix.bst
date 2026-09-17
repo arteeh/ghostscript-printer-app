@@ -1,0 +1,32 @@
+kind: manual
+description: Build the SpliX QPDL printer filters and PPD archive.
+
+sources:
+  - kind: git_repo
+    url: salsa:printing-team/splix.git
+    track: debian/2.0.1-1
+    ref: debian/2.0.1-1-0-g505f24d43fdb86eaa41a44486e7ef88226bb2c0c
+
+build-depends:
+  - printer-app/pyppd.bst
+  - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
+
+depends:
+  - freedesktop-sdk.bst:components/cups.bst
+  - freedesktop-sdk.bst:components/python3.bst
+  - printer-app/jbigkit.bst
+  - freedesktop-sdk.bst:components/cups-filters.bst
+
+config:
+  build-commands:
+    - >-
+      make -j2 V=1
+      CUPSFILTER="/usr/lib/cups/filter"
+      rastertoqpdl_LIBS="-lcupsimage -lcups -lpthread -ljbig85"
+      pstoqpdl_LIBS="-lcupsimage -lcups -lpthread"
+    - cp *.ppd ppd/
+    - pyppd -v -o splix-ppds ppd
+  install-commands:
+    - install -D -m 0755 optimized/pstoqpdl "%{install-root}/usr/lib/cups/filter/pstoqpdl"
+    - install -D -m 0755 optimized/rastertoqpdl "%{install-root}/usr/lib/cups/filter/rastertoqpdl"
+    - install -D -m 0755 splix-ppds "%{install-root}/usr/share/ppd/splix-ppds"

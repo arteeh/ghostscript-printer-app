@@ -70,5 +70,8 @@ verify-payload:
 verify-raster-drivers:
     tests/standalone-raster-drivers.sh
 
+verify-packaged-drivers:
+    tests/packaged-drivers.sh
+
 verify-cups-patch-chain:
     tests/cups-patch-chain.sh
