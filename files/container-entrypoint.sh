@@ -7,7 +7,31 @@ if [[ -n "${PORT:-}" && ! "$PORT" =~ ^[0-9]+$ ]]; then
 fi
 
 state_dir=/var/lib/ghostscript-printer-app
-mkdir -p "$state_dir/ppd" "$state_dir/spool" "$state_dir/usb" "$state_dir/cups/ssl" "$state_dir/pnm2ppa" "$state_dir/hplip/run" "$state_dir/foo2zjs" "$state_dir/m2300w" /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
+state_permission_error() {
+  printf 'Persistent state is not writable: %s; mount a writable volume with permissions for UID:GID %s:%s\n' "$1" "$(id -u)" "$(id -g)" >&2
+  exit 73
+}
+
+# mkdir alone succeeds for existing directories even on a read-only mount.
+# Probe each mutable directory before starting any service, without touching
+# existing settings. Include intermediate directories used by driver payloads.
+for directory in "$state_dir" "$state_dir/ppd" "$state_dir/spool" \
+  "$state_dir/usb" "$state_dir/cups" "$state_dir/cups/ssl" \
+  "$state_dir/pnm2ppa" "$state_dir/hplip" "$state_dir/hplip/run" \
+  "$state_dir/foo2zjs" "$state_dir/m2300w"; do
+  mkdir -p "$directory" || state_permission_error "$directory"
+  probe="$(mktemp "$directory/.write-check.XXXXXXXXXX")" || state_permission_error "$directory"
+  rm -- "$probe" || state_permission_error "$directory"
+done
+
+# Existing application files can have different ownership than their parent.
+for file in "$state_dir/ghostscript-printer-app.state" "$state_dir/ghostscript-printer-app.log"; do
+  if [[ -e "$file" || -L "$file" ]]; then
+    [[ -f "$file" && -w "$file" ]] || state_permission_error "$file"
+  fi
+done
+
+mkdir -p /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
 if [[ ! -e "$state_dir/cups/snmp.conf" ]]; then
   cp /etc/cups/snmp.conf "$state_dir/cups/snmp.conf"
 fi

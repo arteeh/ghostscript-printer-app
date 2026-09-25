@@ -6,13 +6,16 @@ image="ghcr.io/projectbluefin/ghostscript-printer-app:build"
 name="ghostscript-printer-app-smoke"
 failure_name="ghostscript-printer-app-child-failure"
 invalid_name="ghostscript-printer-app-invalid-port"
+state_failure_name="ghostscript-printer-app-state-failure"
 port="${PORT:-18000}"
 failure_port="$((port + 1))"
 state_dir="$(mktemp -d)"
+empty_state_dir="$(mktemp -d)"
 
 cleanup() {
-  podman rm -f "$name" "$failure_name" "$invalid_name" >/dev/null 2>&1 || true
-  podman unshare rm -rf "$state_dir"
+  podman rm -f "$name" "$failure_name" "$invalid_name" "$state_failure_name" >/dev/null 2>&1 || true
+  podman unshare chmod -R u+w "$state_dir" "$empty_state_dir"
+  podman unshare rm -rf "$state_dir" "$empty_state_dir"
 }
 trap cleanup EXIT
 
@@ -28,13 +31,34 @@ wait_for_http() {
   return 1
 }
 
+# Use the image's numeric user and real entrypoint, with a bounded wait so a
+# regression that reaches readiness cannot hang verification indefinitely.
+expect_state_failure() {
+  local volume="$1" expected_path="$2"
+  local running status logs
+  podman run -d --name "$state_failure_name" -v "$volume" "$image" >/dev/null
+  for _ in $(seq 1 100); do
+    running="$(podman inspect "$state_failure_name" --format '{{.State.Running}}')"
+    [[ "$running" == false ]] && break
+    sleep 0.1
+  done
+  read -r running status <<< "$(podman inspect "$state_failure_name" --format '{{.State.Running}} {{.State.ExitCode}}')"
+  logs="$(podman logs "$state_failure_name" 2>&1)"
+  if [[ "$running" != false || "$status" -ne 73 || "$logs" != *"Persistent state is not writable: $expected_path;"* ]]; then
+    printf '%s\nFAIL: unwritable state must exit 73 with a path-specific diagnostic (running=%s, status=%s)\n' "$logs" "$running" "$status" >&2
+    exit 1
+  fi
+  podman rm "$state_failure_name" >/dev/null
+}
+
 just build
 # Inspect the shipped layer before its entrypoint can alter the filesystem.
 podman run --rm --entrypoint /usr/bin/bash "$image" -ec '
   test ! -e /etc/avahi/services/ssh.service
   test ! -e /etc/avahi/services/sftp-ssh.service
 '
-chmod 0777 "$state_dir"
+chmod 0777 "$state_dir" "$empty_state_dir"
+expect_state_failure "$empty_state_dir:/var/lib/ghostscript-printer-app:ro,Z" /var/lib/ghostscript-printer-app
 
 podman run -d \
   --name "$name" \
@@ -108,6 +132,27 @@ if [[ "$failure_status" -eq 0 ]]; then
   printf 'FAIL: required child failure returned success\n' >&2
   exit 1
 fi
+
+# A populated read-only volume must fail too: mkdir and default seeding can
+# otherwise be no-ops, letting the application appear ready.
+expect_state_failure "$state_dir:/var/lib/ghostscript-printer-app:ro,Z" /var/lib/ghostscript-printer-app
+podman run --rm --entrypoint /usr/bin/bash \
+  -v "$state_dir:/var/lib/ghostscript-printer-app:Z" "$image" \
+  -c 'chmod a-w /var/lib/ghostscript-printer-app/spool'
+expect_state_failure "$state_dir:/var/lib/ghostscript-printer-app:Z" /var/lib/ghostscript-printer-app/spool
+podman run --rm --entrypoint /usr/bin/bash \
+  -v "$state_dir:/var/lib/ghostscript-printer-app:Z" "$image" \
+  -c 'chmod u+w /var/lib/ghostscript-printer-app/spool'
+
+for state_file in ghostscript-printer-app.state ghostscript-printer-app.log; do
+  podman run --rm --entrypoint /usr/bin/bash \
+    -v "$state_dir:/var/lib/ghostscript-printer-app:Z" "$image" \
+    -c 'touch "$1"; chmod a-w "$1"' -- "/var/lib/ghostscript-printer-app/$state_file"
+  expect_state_failure "$state_dir:/var/lib/ghostscript-printer-app:Z" "/var/lib/ghostscript-printer-app/$state_file"
+  podman run --rm --entrypoint /usr/bin/bash \
+    -v "$state_dir:/var/lib/ghostscript-printer-app:Z" "$image" \
+    -c 'chmod u+w "$1"' -- "/var/lib/ghostscript-printer-app/$state_file"
+done
 
 set +e
 podman run --name "$invalid_name" -e PORT=invalid "$image" >/dev/null 2>&1
