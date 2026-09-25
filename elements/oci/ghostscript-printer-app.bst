@@ -28,6 +28,10 @@ config:
       rm -rf /layer/run/dbus /layer/run/avahi-daemon /layer/run/ghostscript-printer-app
       rm -rf /layer/usr/lib/debug /layer/usr/share/cups/ipptool
       rm -f /layer/usr/bin/cupsd /layer/usr/bin/ippeveprinter
+      # Avahi's sample remote-login records do not describe this appliance.
+      # Keep the shared base's avahi-printing element and PAPPL's dynamic IPP publication.
+      rm -f /layer/etc/avahi/services/ssh.service \
+        /layer/etc/avahi/services/sftp-ssh.service
       chmod 0777 /layer/run
       install -d -m 1777 /layer/tmp
       install -d -m 0777 \
