@@ -79,6 +79,11 @@ export:
 verify-core:
     tests/core-appliance.sh
 
+# Requires host Avahi and avahi-browse; see docs/oci-discovery-validation.md.
+verify-service-advertisements:
+    just build
+    tests/service-advertisements.sh
+
 verify-payload:
     tests/core-payload.sh
 

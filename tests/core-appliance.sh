@@ -29,6 +29,11 @@ wait_for_http() {
 }
 
 just build
+# Inspect the shipped layer before its entrypoint can alter the filesystem.
+podman run --rm --entrypoint /usr/bin/bash "$image" -ec '
+  test ! -e /etc/avahi/services/ssh.service
+  test ! -e /etc/avahi/services/sftp-ssh.service
+'
 chmod 0777 "$state_dir"
 
 podman run -d \
