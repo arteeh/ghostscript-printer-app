@@ -49,7 +49,9 @@ fetch:
     #!/usr/bin/env bash
     set -euo pipefail
     for attempt in 1 2 3; do
-        if just bst source fetch --deps all oci/ghostscript-printer-app.bst; then
+        if just bst source fetch --ignore-project-source-remotes \
+            --source-remote https://cache.projectbluefin.io:11001 \
+            --deps all oci/ghostscript-printer-app.bst; then
             exit 0
         fi
         echo "source fetch failed (attempt ${attempt}/3)" >&2
