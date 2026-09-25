@@ -79,7 +79,8 @@ CUPS, cups-filters, libcupsfilters, libppd, Ghostscript, mutool, the nonroot `av
 ## Verification
 
 - [ ] `just verify-cups-patch-chain` exits successfully.
-- [ ] The CUPS-dependent Ghostscript element resolves.
+- [ ] The CUPS-dependent Ghostscript element resolves and its resolved variables retain `--with-local-zlib=yes` without `--with-local-zlib=no`.
+- [ ] `just verify-ghostscript-romfs` builds the current native OCI graph, reads the bundled ROMFS RGB ICC profile through EOF, and converts a full default Letter page with the shipped pxljr PPD. The shipped CUPS socket backend must deliver the exact rendered bytes to the socket sink.
 - [ ] The graph contains exactly one FSDK private CUPS base.
 - [ ] The staged CUPS source contains the DNS-SD and `USB_QUIRK_DIR` changes.
 - [ ] The CUPS base still exposes `cups-libs` and `cups-license`.
@@ -91,3 +92,27 @@ CUPS, cups-filters, libcupsfilters, libppd, Ghostscript, mutool, the nonroot `av
 - [ ] Repository-built libraries install their `.pc` files in FSDK's multiarch pkg-config directory and are discoverable from a dependent element's build sandbox.
 - [ ] The exported image runs with the numeric UID/GID, creates runtime directories, and reaches application readiness.
 - [ ] TERM yields signal exit status `143`, not Podman's SIGKILL timeout status `137`; killing a required child makes the container exit nonzero.
+
+## Ghostscript ROMFS regression gate
+
+`just verify-ghostscript-romfs` is part of `just verify`, so the merge queue runs
+it on both native architectures for every change, including each
+`update-base.yml` fsdk-containers bump. Ghostscript's bundled zlib is set by
+fsdk-containers' printing patch; run `just verify-cups-patch-chain` first when
+bumping `elements/fsdk-containers.bst`, since it checks the resolved Ghostscript
+configuration that patch produces.
+
+The ROMFS gate calls `just build` to build and export the checkout's current graph.
+It does not accept a prebuilt image override. Keep the pxljr PPD's default Letter
+page and normal resolution: reduced raster dimensions can miss the lazy ICC read
+that previously failed with `free(): invalid size` in `s_block_read_process`.
+A separate Ghostscript invocation reads `%rom%iccprofiles/default_rgb.icc`, checks
+its ICC signature, and consumes it through EOF. The conversion must exit cleanly,
+produce the expected PCL XL prefix, and arrive unchanged at a bounded socket sink.
+`ROMFS_SINK_PORT` can select a free host port (default `19050`).
+
+This gate exercises the real image's filter and backend. The existing core payload
+gate covers IPP job submission through the application; physical paper output is
+still unverified without printer hardware. Shell syntax or mocked command results
+do not establish ROMFS regression coverage. A host without Podman cannot run this
+gate and must report that limitation rather than claim a conversion pass.

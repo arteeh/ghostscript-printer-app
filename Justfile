@@ -96,6 +96,9 @@ verify-packaged-drivers:
 verify-stateful-drivers:
     tests/stateful-drivers.sh
 
+verify-ghostscript-romfs:
+    tests/ghostscript-romfs.sh
+
 verify-cups-patch-chain:
     tests/cups-patch-chain.sh
 
@@ -128,6 +131,7 @@ verify:
     just verify-rootless-usb
     just validate
     just verify-cups-patch-chain
+    just verify-ghostscript-romfs
     just verify-core
     just verify-payload
     just verify-raster-drivers
