@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request: {}
+    branches: [testing, stable]
+  pull_request:
+    branches: [testing, stable]
   workflow_dispatch:
 concurrency:
   group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
@@ -31,6 +32,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Test promotion invariants
+        run: python3 tests/test-promotion.py
+      - name: Validate stable promotion and select exact source revision
+        if: github.event_name == 'pull_request' && github.base_ref == 'stable'
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" && "$HEAD_BRANCH" == testing ]]
+          scripts/verify-promotion.sh "$BASE_SHA" "$SOURCE_SHA" HEAD
+          git checkout --detach "$SOURCE_SHA"
       - uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2
         with:
           tool: just
@@ -50,6 +66,19 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Validate stable promotion and select exact source revision
+        if: github.event_name == 'pull_request' && github.base_ref == 'stable'
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" && "$HEAD_BRANCH" == testing ]]
+          scripts/verify-promotion.sh "$BASE_SHA" "$SOURCE_SHA" HEAD
+          git checkout --detach "$SOURCE_SHA"
       - name: Build Snap package
         id: snapcraft
         continue-on-error: true

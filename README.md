@@ -27,8 +27,9 @@ printer](http://www.openprinting.org/printers/), [by
 driver](http://www.openprinting.org/drivers/),
 [Downlod](http://github.com/OpenPrinting/foomatic-db)) is used.
 
-Your contributions are welcome. Please post [issues and pull
-requests](https://github.com/OpenPrinting/ghostscript-printer-app).
+Your contributions are welcome. For this Project Bluefin fork, open pull requests
+against `testing`; see the [contribution and stable promotion guide](docs/branch-promotion.md).
+The upstream project is [OpenPrinting/ghostscript-printer-app](https://github.com/OpenPrinting/ghostscript-printer-app).
 
 
 ### Contained Printer Drivers
