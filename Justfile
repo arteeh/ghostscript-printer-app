@@ -115,6 +115,12 @@ verify-no-devel:
     [ -z "${bad}" ] || { echo "devel content in ${IMAGE}: ${bad}" >&2; exit 1; }
     echo "OK: no devel content in ${IMAGE}"
 
+# Needs host networking with multicast (the probe runs the image's own
+# avahi-browse); not part of `just verify` (see verify-service-advertisements
+# for the same pattern). The script itself runs `just build`.
+verify-discovery:
+    tests/discovery-no-competition.sh
+
 verify:
     just validate
     just verify-cups-patch-chain
