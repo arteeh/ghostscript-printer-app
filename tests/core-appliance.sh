@@ -51,6 +51,42 @@ expect_state_failure() {
   podman rm "$state_failure_name" >/dev/null
 }
 
+wait_for_https() {
+  local target_port="$1"
+  local response
+  for _ in $(seq 1 60); do
+    # The appliance generates its own certificate on the persistent volume.
+    if response="$(curl --insecure --fail --silent --show-error "https://127.0.0.1:${target_port}/" 2>/dev/null)" && [[ "$response" == *'<title>Ghostscript Printer Application</title>'* ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+check_private_state() {
+  if ! podman exec "$1" /usr/bin/bash -c '
+    set -euo pipefail
+    state=/var/lib/ghostscript-printer-app
+    for dir in "$state/cups" "$state/cups/ssl" "$state/.cups" "$state/.cups/ssl" "$state/spool"; do
+      test "$(stat -c %a "$dir")" = 700
+      test "$(stat -c %u:%g "$dir")" = 65532:65532
+    done
+    shopt -s nullglob
+    keys=("$state/.cups/ssl/"*.key)
+    (( ${#keys[@]} > 0 ))
+    for key in "${keys[@]}"; do
+      test -s "$key"
+      test "$(stat -c %a "$key")" = 600
+      test "$(stat -c %u:%g "$key")" = 65532:65532
+    done
+  '; then
+    printf 'FAIL: private state is not restricted to the runtime user\n' >&2
+    podman exec "$1" /usr/bin/bash -c 'cd /var/lib/ghostscript-printer-app && stat -c "%a %u:%g %n" . cups cups/ssl .cups .cups/ssl spool .cups/ssl/* cups/ssl/*' >&2 || true
+    return 1
+  fi
+}
+
 just build
 # Inspect the shipped layer before its entrypoint can alter the filesystem.
 podman run --rm --entrypoint /usr/bin/bash "$image" -ec '
@@ -68,6 +104,8 @@ podman run -d \
   "$image" >/dev/null
 
 wait_for_http "$port"
+wait_for_https "$port"
+check_private_state "$name"
 podman exec "$name" /usr/bin/bash -c '
   set -e
   test "$(id -u):$(id -g)" = 65532:65532
@@ -82,11 +120,15 @@ podman exec "$name" /usr/bin/bash -c '
   done < /etc/group
   (( passwd_ok && group_ok ))
 '
-test -d "$state_dir/ppd"
-test -d "$state_dir/spool"
-test -d "$state_dir/cups/ssl"
-test -s "$state_dir/cups/snmp.conf"
-test -s "$state_dir/usb/org.cups.usb-quirks"
+podman exec "$name" /usr/bin/bash -c '
+  set -e
+  state=/var/lib/ghostscript-printer-app
+  test -d "$state/ppd"
+  test -s "$state/cups/snmp.conf"
+  test -s "$state/usb/org.cups.usb-quirks"
+  printf "private job\n" > "$state/spool/permission-probe"
+'
+keys_before="$(podman exec "$name" /usr/bin/bash -c 'sha256sum /var/lib/ghostscript-printer-app/.cups/ssl/*.key')"
 podman exec "$name" /usr/bin/bash -c 'printf "%s\n" "# preserved" > /var/lib/ghostscript-printer-app/cups/snmp.conf'
 podman exec "$name" /usr/bin/bash -c 'printf "%s\n" "# preserved USB quirks" > /var/lib/ghostscript-printer-app/usb/org.cups.usb-quirks'
 podman stop --time 15 "$name" >/dev/null
@@ -97,6 +139,17 @@ if [[ "$running" != false || "$exit_status" -ne 143 ]]; then
   exit 1
 fi
 
+# Simulate an older volume with exposed keys and nested queued-job state.
+podman run --rm --entrypoint /usr/bin/bash \
+  -v "$state_dir:/var/lib/ghostscript-printer-app:Z" "$image" -c '
+    set -e
+    state=/var/lib/ghostscript-printer-app
+    mkdir -p "$state/spool/legacy"
+    printf "nested job\n" > "$state/spool/legacy/job"
+    chmod 0777 "$state/cups" "$state/cups/ssl" "$state/.cups" "$state/.cups/ssl" "$state/spool" "$state/spool/legacy"
+    chmod 0666 "$state/.cups/ssl/"*.key "$state/spool/permission-probe" "$state/spool/legacy/job"
+  '
+
 podman run -d \
   --name "$failure_name" \
   --network host \
@@ -105,6 +158,19 @@ podman run -d \
   "$image" >/dev/null
 
 wait_for_http "$failure_port"
+wait_for_https "$failure_port"
+check_private_state "$failure_name"
+keys_after="$(podman exec "$failure_name" /usr/bin/bash -c 'sha256sum /var/lib/ghostscript-printer-app/.cups/ssl/*.key')"
+test "$keys_before" = "$keys_after"
+podman exec "$failure_name" /usr/bin/bash -c '
+  set -e
+  state=/var/lib/ghostscript-printer-app
+  test "$(stat -c %a "$state/spool/legacy")" = 700
+  test "$(stat -c %a "$state/spool/legacy/job")" = 600
+  test "$(stat -c %a "$state/spool/permission-probe")" = 600
+  test "$(cat "$state/spool/permission-probe")" = "private job"
+  test "$(cat "$state/spool/legacy/job")" = "nested job"
+'
 podman exec "$failure_name" /usr/bin/bash -c 'test "$(< /var/lib/ghostscript-printer-app/cups/snmp.conf)" = "# preserved"'
 podman exec "$failure_name" /usr/bin/bash -c 'test "$(< /var/lib/ghostscript-printer-app/usb/org.cups.usb-quirks)" = "# preserved USB quirks"'
 podman exec "$failure_name" /usr/bin/bash -c '
