@@ -372,7 +372,12 @@ Open `http://localhost:8000/` and use the web interface to add a printer.
 `PORT` is optional; without it, the application selects port 8000 or the next
 available port. Host networking is required for local-network printer discovery.
 The named volume preserves Printer Application state and user-edited driver
-configuration across upgrades.
+configuration across upgrades. Startup uses umask `077` and restricts the CUPS,
+TLS-key, and spool directories to the runtime user (`0700`). Existing TLS and
+spool contents lose group/other access on every startup; a volume whose private
+state cannot be secured by UID/GID `65532:65532` fails startup. Keep bind-mounted
+state owned by that runtime user (the `:U` option above sets volume ownership),
+and restrict access to its host parent directory.
 
 For USB printers, add these options to `podman run`:
 

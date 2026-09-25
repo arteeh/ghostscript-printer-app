@@ -6,6 +6,9 @@ if [[ -n "${PORT:-}" && ! "$PORT" =~ ^[0-9]+$ ]]; then
   exit 64
 fi
 
+# Keep newly created keys, jobs, and application state private to the runtime user.
+umask 077
+
 state_dir=/var/lib/ghostscript-printer-app
 state_permission_error() {
   printf 'Persistent state is not writable: %s; mount a writable volume with permissions for UID:GID %s:%s\n' "$1" "$(id -u)" "$(id -g)" >&2
@@ -32,6 +35,14 @@ for file in "$state_dir/ghostscript-printer-app.state" "$state_dir/ghostscript-p
 done
 
 mkdir -p /run/dbus /run/avahi-daemon /run/ghostscript-printer-app
+# Repair volumes created by older images before starting any service. Fail closed
+# if the runtime user cannot secure existing private state.
+# CUPS keeps a non-root server's TLS credentials in "$HOME/.cups/ssl", and HOME is
+# the state directory, so that is where the appliance's private keys live.
+mkdir -p "$state_dir/.cups/ssl"
+chmod 0700 "$state_dir/cups" "$state_dir/cups/ssl" "$state_dir/.cups" "$state_dir/.cups/ssl" "$state_dir/spool"
+chmod -R u+rwX,go-rwx "$state_dir/cups/ssl" "$state_dir/.cups/ssl" "$state_dir/spool"
+
 if [[ ! -e "$state_dir/cups/snmp.conf" ]]; then
   cp /etc/cups/snmp.conf "$state_dir/cups/snmp.conf"
 fi
