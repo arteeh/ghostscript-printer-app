@@ -12,6 +12,15 @@ if ! grep -qxF "$dependent_target" <<<"$resolved"; then
   exit 1
 fi
 
+# Inspect the resolved junction element, not just the text of our patch: an
+# FSDK update must not silently restore the zlib-ng compatibility library.
+ghostscript_vars="$(just bst show --deps none --format '%{vars}' "$dependent_target")"
+if ! grep -q -- '--with-local-zlib=yes' <<<"$ghostscript_vars" ||
+   grep -q -- '--with-local-zlib=no' <<<"$ghostscript_vars"; then
+  printf 'FAIL: Ghostscript must retain bundled zlib for ROMFS ICC reads\n' >&2
+  exit 1
+fi
+
 deps="$(just bst show --deps all --format '%{name}' "$dependent_target")"
 cups_base_count="$(grep -c '^fsdk-containers\.bst:freedesktop-sdk\.bst:components/_private/cups-base\.bst$' <<<"$deps" || true)"
 if [[ "$cups_base_count" != 1 ]]; then
