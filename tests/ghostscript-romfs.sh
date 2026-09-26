@@ -21,6 +21,17 @@ just build
 # Bound accept as well as receive time so a broken backend cannot hang the gate.
 timeout 120 python3 tests/socket-sink.py "$sink_port" "$work/output.pcl" &
 sink_pid=$!
+# The backend must find the sink listening, not race its startup.
+wait_for_sink() {
+  for _ in $(seq 1 100); do
+    [[ -n "$(ss -Htln "sport = :${sink_port}")" ]] && return 0
+    kill -0 "$sink_pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  printf 'FAIL: socket sink did not listen on port %s\n' "$sink_port" >&2
+  return 1
+}
+wait_for_sink
 
 podman run --rm --network host --entrypoint /usr/bin/bash \
   -e ROMFS_SINK_PORT="$sink_port" "$image" -c '
