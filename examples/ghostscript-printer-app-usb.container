@@ -1,0 +1,22 @@
+# Install in ~/.config/containers/systemd/ after following docs/oci-physical-validation.md.
+# Replace the image in BOTH Image= and ExecStartPre= with the same tested digest.
+[Unit]
+Description=Ghostscript Printer Application (rootless USB)
+
+[Container]
+Image=ghcr.io/projectbluefin/ghostscript-printer-app:10.07.1-1
+ContainerName=ghostscript-printer-app-usb
+Network=host
+User=65532:65532
+AddDevice=/dev/bus/usb
+GroupAdd=keep-groups
+Environment=PORT=18080
+Volume=ghostscript-printer-app-usb:/var/lib/ghostscript-printer-app:Z,U
+
+[Service]
+# Replace 001/002 with the connected printer node; it can change on reconnect.
+ExecStartPre=/usr/bin/python3 %h/.local/libexec/check-rootless-usb.py ghcr.io/projectbluefin/ghostscript-printer-app:10.07.1-1 /dev/bus/usb/001/002
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

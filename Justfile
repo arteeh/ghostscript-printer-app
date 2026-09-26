@@ -121,7 +121,11 @@ verify-no-devel:
 verify-discovery:
     tests/discovery-no-competition.sh
 
+verify-rootless-usb:
+    python3 tests/rootless-usb.py
+
 verify:
+    just verify-rootless-usb
     just validate
     just verify-cups-patch-chain
     just verify-core

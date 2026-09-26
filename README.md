@@ -386,7 +386,11 @@ For USB printers, add these options to `podman run`:
 ```
 
 The host user must already have permission to access the printer device. Do not
-work around host permissions by running the appliance as root.
+work around host permissions by running the appliance as root. Before starting,
+run `python3 scripts/check-rootless-usb.py "$image" /dev/bus/usb/BBB/DDD` with the
+printer's current node. See the [rootless permissions and Quadlet setup](docs/oci-physical-validation.md#rootless-permissions-and-quadlet)
+for udev/group configuration, crun requirements, and a service that gates startup
+on this check.
 
 ### Build and verify locally
 
