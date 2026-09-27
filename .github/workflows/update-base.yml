@@ -19,7 +19,7 @@ jobs:
   update:
     name: Track fsdk-containers
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 360
     env:
       BST_FLAGS: --config /src/ci/buildstream.conf
     steps:
@@ -55,6 +55,33 @@ jobs:
               echo "new=${new}"
             } >> "$GITHUB_OUTPUT"
           fi
+      - name: Synchronize source metadata
+        if: steps.track.outputs.changed == 'true'
+        env:
+          OLD: ${{ steps.track.outputs.old }}
+          NEW: ${{ steps.track.outputs.new }}
+        run: |
+          set -euo pipefail
+          mkdir -p .bst/update-evidence
+          python3 scripts/sync-fsdk-metadata.py --old "$OLD" --new "$NEW" |
+            tee .bst/update-evidence/sources.txt
+      - name: Verify candidate before write credentials
+        if: steps.track.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          python3 tests/fsdk-metadata.py
+          just verify-cups-patch-chain 2>&1 | tee .bst/update-evidence/patch-chain.log
+          just fetch 2>&1 | tee .bst/update-evidence/fetch.log
+          just verify 2>&1 | tee .bst/update-evidence/verify.log
+      # BuildStream's session summaries distinguish local cache, remote pulls
+      # and local builds. Keep the actual results, including failed runs.
+      - name: Retain source and cache evidence
+        if: always() && steps.track.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fsdk-update-evidence
+          path: .bst/update-evidence/
+          include-hidden-files: true
       - name: Mint Mergeraptor token
         if: steps.track.outputs.changed == 'true'
         id: app-token
@@ -79,16 +106,24 @@ jobs:
           git config user.name 'mergeraptor[bot]'
           git config user.email '267480593+mergeraptor[bot]@users.noreply.github.com'
           git switch --create "$branch"
-          git add elements/fsdk-containers.bst
+          git add elements/fsdk-containers.bst VERSION elements/printer-app/ijs.bst \
+            elements/oci/ghostscript-printer-app.bst README.md
           git commit --signoff -m "$title"
           basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           echo "::add-mask::$basic"
           git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $basic" \
             push --force "https://github.com/${REPOSITORY}.git" "HEAD:refs/heads/$branch"
           body="Moves the fsdk-containers junction (FSDK and the shared printing base) from ${OLD} to ${NEW}: https://github.com/projectbluefin/fsdk-containers/compare/${OLD}...${NEW}"
+          body_file="$(mktemp)"
+          {
+            printf '%s\n\n' "$body"
+            cat .bst/update-evidence/sources.txt
+            printf '\nVerified with patch-chain, fetch and full OCI socket-sink gates on x86_64. Physical paper output remains unverified.\n'
+            printf '\nSource/cache evidence: https://github.com/%s/actions/runs/%s (fsdk-update-evidence artifact). Native arm64 verification remains a merge-queue gate.\n' "$REPOSITORY" "$GITHUB_RUN_ID"
+          } > "$body_file"
           if existing="$(gh pr list --head "$branch" --base testing --state open --json number --jq '.[0].number')" && [[ -n "$existing" ]]; then
-            gh pr edit "$existing" --title "$title" --body "$body"
+            gh pr edit "$existing" --title "$title" --body-file "$body_file"
             printf 'Updated dependency PR #%s\n' "$existing"
           else
-            gh pr create --base testing --head "$branch" --title "$title" --body "$body"
+            gh pr create --base testing --head "$branch" --title "$title" --body-file "$body_file"
           fi
