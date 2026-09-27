@@ -24,8 +24,18 @@ stable upstream tags observed at update time. There are two distinct kinds of
 lag: the shared base may follow an older FSDK release, and even the newest FSDK
 may package an older Ghostscript than Artifex. A tag lookup failure is reported
 as unknown, never as zero lag. These observations do not change source pins.
+In particular, tag discovery
+does not satisfy adoption of a newer FSDK line: the shared base's `26.08*`
+selector remains unchanged. Issue #14's release-line acceptance criterion
+remains open for a maintainer decision or a companion shared-base change.
 Future-line compatibility is decided by patch-chain, fetch and full real-image
 verification, not by version ordering alone.
+
+For changed candidates, the updater first restores the x86_64 BuildStream
+cache using the same keys as CI and seeds the printing base from a
+cosign-verified bundle for its exact artifact key. Cache misses or unavailable
+bundles fall back to a local build, as in CI. The restore and seed step logs
+record the initial cache state; these are separate from FSDK remote CAS pulls.
 
 Before minting the proposal token, the updater runs `just verify-cups-patch-chain`,
 `just fetch` and `just verify`. Its `fsdk-update-evidence` workflow artifact retains

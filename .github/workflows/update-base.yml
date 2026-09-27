@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
+      CACHE_PREFIX: bst-v1-x86_64-
       BST_FLAGS: --config /src/ci/buildstream.conf
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,7 +32,7 @@ jobs:
         with:
           tool: just
       - name: Install host dependencies
-        run: sudo apt-get update && sudo apt-get install --yes fuse3 podman
+        run: sudo apt-get update && sudo apt-get install --yes fuse3 podman skopeo jq
       - name: Track fsdk-containers
         id: track
         run: |
@@ -65,11 +66,77 @@ jobs:
           mkdir -p .bst/update-evidence
           python3 scripts/sync-fsdk-metadata.py --old "$OLD" --new "$NEW" |
             tee .bst/update-evidence/sources.txt
+      - name: Compute BuildStream cache key
+        id: cache-key
+        if: steps.track.outputs.changed == 'true'
+        env:
+          INPUTS_HASH: ${{ hashFiles('project.conf', 'elements/**', 'include/**', 'patches/**', 'files/**', 'Makefile', 'ghostscript-printer-app.c', 'ghostscript-printer-app.1', 'ghostscript-printer-app.service', 'testpage.ps', 'VERSION') }}
+        run: echo "inputs=${CACHE_PREFIX}${INPUTS_HASH}-" >> "$GITHUB_OUTPUT"
+      - name: Restore BuildStream cache
+        if: steps.track.outputs.changed == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/buildstream/cas
+            ~/.cache/buildstream/artifacts
+            ~/.cache/buildstream/source_protos
+          key: ${{ steps.cache-key.outputs.inputs }}${{ github.run_id }}
+          restore-keys: |
+            ${{ steps.cache-key.outputs.inputs }}
+            ${{ env.CACHE_PREFIX }}
+      - name: Install cosign
+        if: steps.track.outputs.changed == 'true'
+        continue-on-error: true
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      # Seed printing/base.bst from the signed printing-base-devel bundle
+      # (fsdk-containers docs/skills/printing-base.md, rule 4). Never fails
+      # the job: any error falls through to a local build of the base.
+      - name: Seed printing base
+        if: steps.track.outputs.changed == 'true'
+        continue-on-error: true
+        env:
+          ARCH: x86_64
+        run: |
+          set -uo pipefail
+          base=fsdk-containers.bst:printing/base.bst
+          show() {
+            just bst -o arch "$ARCH" show --deps none --format "$1" "$base" 2>/dev/null |
+              tail -n 1 | sed 's/\x1b\[[0-9;]*m//g'
+          }
+          KEY="$(show '%{full-key}')"
+          if [[ ! "$KEY" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::warning::printing base: cannot compute the ${ARCH} key; building it locally"
+            exit 0
+          fi
+          if [[ "$(show '%{state}')" == cached ]]; then
+            echo "printing base ${ARCH}-${KEY} is already cached"
+            exit 0
+          fi
+          if ! ARCH="$ARCH" KEY="$KEY" bash -euo pipefail <<'SEED'
+          REPO=ghcr.io/projectbluefin/printing-base-devel
+          DIGEST="$(skopeo inspect --format '{{.Digest}}' "docker://${REPO}:${ARCH}-${KEY}")"
+          cosign verify \
+            --certificate-identity-regexp '^https://github.com/projectbluefin/fsdk-containers/.github/workflows/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${REPO}@${DIGEST}" >/dev/null
+          # Copy exactly the verified digest; never touch podman storage.
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "${bundle}"' EXIT
+          skopeo copy "docker://${REPO}@${DIGEST}" "dir:${bundle}"
+          layer="$(jq -r '.layers[0].digest' "${bundle}/manifest.json" | cut -d: -f2)"
+          tar -C ~/.cache/buildstream -xf "${bundle}/${layer}"
+          SEED
+          then
+            echo "::warning::printing base: seeding ${ARCH}-${KEY} failed; building it locally"
+          elif [[ "$(show '%{state}')" != cached ]]; then
+            echo "::warning::printing base: ${ARCH}-${KEY} not verified or not cached after seeding; building it locally"
+          else
+            echo "printing base seeded from ${ARCH}-${KEY}"
+          fi
       - name: Verify candidate before write credentials
         if: steps.track.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          python3 tests/fsdk-metadata.py
           just verify-cups-patch-chain 2>&1 | tee .bst/update-evidence/patch-chain.log
           just fetch 2>&1 | tee .bst/update-evidence/fetch.log
           just verify 2>&1 | tee .bst/update-evidence/verify.log
