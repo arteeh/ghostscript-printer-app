@@ -107,6 +107,13 @@ verify-ghostscript-romfs:
 verify-cups-patch-chain:
     tests/cups-patch-chain.sh
 
+# Default (no-PORT) port coexistence (issue #17, "Default port and coexistence
+# case"): PAPPL's default listener starts at 7999 + UID % 1000 (8532 for 65532)
+# and steps to the next free port; PR #57 only exercised explicit ports. Host
+# Avahi + multicast; opt-in, not part of `just verify`.
+verify-discovery-default-port:
+    tests/discovery-default-port.sh
+
 # fsdk-containers printing-base contract rule 5: the image composes runtime
 # domains only, so no headers, static/libtool archives, pkg-config or CMake
 # files may reach it (license texts are exempt). Run after an image build (`just build`).
