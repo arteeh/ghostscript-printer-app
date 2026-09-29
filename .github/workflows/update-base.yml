@@ -19,8 +19,9 @@ jobs:
   update:
     name: Track fsdk-containers
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 360
     env:
+      CACHE_PREFIX: bst-v1-x86_64-
       BST_FLAGS: --config /src/ci/buildstream.conf
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,7 +32,7 @@ jobs:
         with:
           tool: just
       - name: Install host dependencies
-        run: sudo apt-get update && sudo apt-get install --yes fuse3 podman
+        run: sudo apt-get update && sudo apt-get install --yes fuse3 podman skopeo jq
       - name: Track fsdk-containers
         id: track
         run: |
@@ -55,6 +56,99 @@ jobs:
               echo "new=${new}"
             } >> "$GITHUB_OUTPUT"
           fi
+      - name: Synchronize source metadata
+        if: steps.track.outputs.changed == 'true'
+        env:
+          OLD: ${{ steps.track.outputs.old }}
+          NEW: ${{ steps.track.outputs.new }}
+        run: |
+          set -euo pipefail
+          mkdir -p .bst/update-evidence
+          python3 scripts/sync-fsdk-metadata.py --old "$OLD" --new "$NEW" |
+            tee .bst/update-evidence/sources.txt
+      - name: Compute BuildStream cache key
+        id: cache-key
+        if: steps.track.outputs.changed == 'true'
+        env:
+          INPUTS_HASH: ${{ hashFiles('project.conf', 'elements/**', 'include/**', 'patches/**', 'files/**', 'Makefile', 'ghostscript-printer-app.c', 'ghostscript-printer-app.1', 'ghostscript-printer-app.service', 'testpage.ps', 'VERSION') }}
+        run: echo "inputs=${CACHE_PREFIX}${INPUTS_HASH}-" >> "$GITHUB_OUTPUT"
+      - name: Restore BuildStream cache
+        if: steps.track.outputs.changed == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/buildstream/cas
+            ~/.cache/buildstream/artifacts
+            ~/.cache/buildstream/source_protos
+          key: ${{ steps.cache-key.outputs.inputs }}${{ github.run_id }}
+          restore-keys: |
+            ${{ steps.cache-key.outputs.inputs }}
+            ${{ env.CACHE_PREFIX }}
+      - name: Install cosign
+        if: steps.track.outputs.changed == 'true'
+        continue-on-error: true
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      # Seed printing/base.bst from the signed printing-base-devel bundle
+      # (fsdk-containers docs/skills/printing-base.md, rule 4). Never fails
+      # the job: any error falls through to a local build of the base.
+      - name: Seed printing base
+        if: steps.track.outputs.changed == 'true'
+        continue-on-error: true
+        env:
+          ARCH: x86_64
+        run: |
+          set -uo pipefail
+          base=fsdk-containers.bst:printing/base.bst
+          show() {
+            just bst -o arch "$ARCH" show --deps none --format "$1" "$base" 2>/dev/null |
+              tail -n 1 | sed 's/\x1b\[[0-9;]*m//g'
+          }
+          KEY="$(show '%{full-key}')"
+          if [[ ! "$KEY" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::warning::printing base: cannot compute the ${ARCH} key; building it locally"
+            exit 0
+          fi
+          if [[ "$(show '%{state}')" == cached ]]; then
+            echo "printing base ${ARCH}-${KEY} is already cached"
+            exit 0
+          fi
+          if ! ARCH="$ARCH" KEY="$KEY" bash -euo pipefail <<'SEED'
+          REPO=ghcr.io/projectbluefin/printing-base-devel
+          DIGEST="$(skopeo inspect --format '{{.Digest}}' "docker://${REPO}:${ARCH}-${KEY}")"
+          cosign verify \
+            --certificate-identity-regexp '^https://github.com/projectbluefin/fsdk-containers/.github/workflows/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${REPO}@${DIGEST}" >/dev/null
+          # Copy exactly the verified digest; never touch podman storage.
+          bundle="$(mktemp -d)"
+          trap 'rm -rf "${bundle}"' EXIT
+          skopeo copy "docker://${REPO}@${DIGEST}" "dir:${bundle}"
+          layer="$(jq -r '.layers[0].digest' "${bundle}/manifest.json" | cut -d: -f2)"
+          tar -C ~/.cache/buildstream -xf "${bundle}/${layer}"
+          SEED
+          then
+            echo "::warning::printing base: seeding ${ARCH}-${KEY} failed; building it locally"
+          elif [[ "$(show '%{state}')" != cached ]]; then
+            echo "::warning::printing base: ${ARCH}-${KEY} not verified or not cached after seeding; building it locally"
+          else
+            echo "printing base seeded from ${ARCH}-${KEY}"
+          fi
+      - name: Verify candidate before write credentials
+        if: steps.track.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          just verify-cups-patch-chain 2>&1 | tee .bst/update-evidence/patch-chain.log
+          just fetch 2>&1 | tee .bst/update-evidence/fetch.log
+          just verify 2>&1 | tee .bst/update-evidence/verify.log
+      # BuildStream's session summaries distinguish local cache, remote pulls
+      # and local builds. Keep the actual results, including failed runs.
+      - name: Retain source and cache evidence
+        if: always() && steps.track.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fsdk-update-evidence
+          path: .bst/update-evidence/
+          include-hidden-files: true
       - name: Mint Mergeraptor token
         if: steps.track.outputs.changed == 'true'
         id: app-token
@@ -123,7 +217,8 @@ jobs:
           done
 
           git switch --create "$branch"
-          git add elements/fsdk-containers.bst
+          git add elements/fsdk-containers.bst VERSION elements/printer-app/ijs.bst \
+            elements/oci/ghostscript-printer-app.bst README.md
           git commit --signoff -m "$title"
 
           if [[ -n "$remote_head" ]]; then
@@ -157,9 +252,16 @@ jobs:
           if [[ "$conflict" == "true" ]]; then
             body="$body"$'\n\n'"This is a fresh proposal branch: \`$conflicted_branch\` has commits not authored and committed by mergeraptor[bot], so it was left untouched instead of being force-pushed over."
           fi
+          body_file="$(mktemp)"
+          {
+            printf '%s\n\n' "$body"
+            cat .bst/update-evidence/sources.txt
+            printf '\nVerified with patch-chain, fetch and full OCI socket-sink gates on x86_64. Physical paper output remains unverified.\n'
+            printf '\nSource/cache evidence: https://github.com/%s/actions/runs/%s (fsdk-update-evidence artifact). Native arm64 verification remains a merge-queue gate.\n' "$REPOSITORY" "$GITHUB_RUN_ID"
+          } > "$body_file"
           if existing="$(gh pr list --head "$branch" --base testing --state open --json number --jq '.[0].number')" && [[ -n "$existing" ]]; then
-            gh pr edit "$existing" --title "$title" --body "$body"
+            gh pr edit "$existing" --title "$title" --body-file "$body_file"
             printf 'Updated dependency PR #%s\n' "$existing"
           else
-            gh pr create --base testing --head "$branch" --title "$title" --body "$body"
+            gh pr create --base testing --head "$branch" --title "$title" --body-file "$body_file"
           fi

@@ -69,6 +69,7 @@ expect_equal source "$(podman image inspect "$image" --format '{{index .Config.L
 expect_equal license "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}')" Apache-2.0
 application_version="$(podman run --rm --entrypoint /usr/bin/ghostscript-printer-app "$image" --version)"
 expect_equal binary-version "$application_version" "$(< VERSION)"
+expect_equal ghostscript-version "$(podman run --rm --entrypoint /usr/bin/gs "$image" --version)" "${application_version%-*}"
 expect_equal image-version "$(podman image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" "$application_version"
 expect_equal fsdk-version "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.version"}}')" "$fsdk_version"
 expect_equal fsdk-ref "$(podman image inspect "$image" --format '{{index .Config.Labels "io.projectbluefin.fsdk.ref"}}')" "$fsdk_ref"
