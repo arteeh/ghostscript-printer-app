@@ -379,6 +379,58 @@ state cannot be secured by UID/GID `65532:65532` fails startup. Keep bind-mounte
 state owned by that runtime user (the `:U` option above sets volume ownership),
 and restrict access to its host parent directory.
 
+### Web administration
+
+PAPPL serves IPP and the web interface on the same port, and the appliance runs
+on host networking, so by default the web administration pages are reachable by
+every client that can reach the printer, without a credential. The entrypoint
+prints a `NOTICE` about this at startup. Close that surface with one of these
+environment variables; every value is validated, and a value the appliance
+cannot honour stops the container instead of starting it unauthenticated
+(exit `64` for a malformed value, `78` for a value this image cannot enforce):
+
+| Variable | Forwarded as | Accepted values |
+| --- | --- | --- |
+| `PRINTER_APP_SERVER_OPTIONS` | `-o server-options=…` | Comma-separated PAPPL server options from the allow-list: `no-web-interface`. |
+| `PRINTER_APP_AUTH_SERVICE` | `-o auth-service=…` | A PAM service name (`[A-Za-z0-9_.-]`). Refused with exit `78` while the image's PAPPL is built without PAM (see below). |
+| `PRINTER_APP_ADMIN_GROUP` | `-o admin-group=…` | A group from the image's `/etc/group`; requires `PRINTER_APP_AUTH_SERVICE`. |
+
+`PRINTER_APP_SERVER_OPTIONS=no-web-interface` is the supported way to run the
+appliance on a LAN-facing surface today: every web page, including the
+per-printer configuration and pappl-retrofit's "Device Settings" pages, answers
+`404`, while IPP printing, IPP administration from the container itself, and
+DNS-SD advertisement keep working. Manage printers with the command-line client
+from inside the container (`podman exec ghostscript-printer-app
+ghostscript-printer-app -u ipp://127.0.0.1:8000/ipp/system … add`):
+
+```sh
+podman run -d \
+  --name ghostscript-printer-app \
+  --network host \
+  -e PORT=8000 \
+  -e PRINTER_APP_SERVER_OPTIONS=no-web-interface \
+  -v ghostscript-printer-app:/var/lib/ghostscript-printer-app:Z,U \
+  "$image"
+```
+
+`PRINTER_APP_AUTH_SERVICE` and `PRINTER_APP_ADMIN_GROUP` are parsed so the
+configuration surface is stable for supervisors such as ChairLift, but the
+shared printing base builds PAPPL with `--disable-libpam`, so every service
+name is refused and the container exits `78` with a diagnostic naming
+`no-web-interface` as the alternative. The refusal does not depend on whether
+`/etc/pam.d/<name>` exists in the image (`/etc/pam.d/cups` ships with CUPS):
+forwarding `auth-service` to a PAM-less PAPPL would not authenticate anyone,
+it would answer every administration request, including from `localhost`, with
+`401`. Authenticated web administration becomes available once the base builds
+PAPPL with PAM and ships a service configuration for this appliance.
+
+Setting an unlisted server option such as `no-tls` or `none`, a name with
+characters outside `[A-Za-z0-9_.-]`, a group PAPPL cannot resolve (it would
+otherwise skip the group check and admit every authenticated user), or a group
+without an auth service is rejected. `tests/entrypoint-validation.sh` covers
+those rejections on the host; `tests/core-appliance.sh` verifies the
+`no-web-interface` behaviour against the built image.
+
 For USB printers, add these options to `podman run`:
 
 ```sh
